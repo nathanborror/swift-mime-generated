@@ -22,9 +22,13 @@ public struct MIMEMessage: Sendable {
         self.parts = parts
     }
 
-    /// The "Date" header value
-    public var date: String? {
-        headers["Date"]
+    /// The "Date" header value parsed as a Date
+    public var date: Date? {
+        guard let dateString = headers["Date"] else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        return formatter.date(from: dateString)
     }
 
     /// The "MIME-Version" header value

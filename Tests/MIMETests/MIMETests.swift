@@ -325,7 +325,7 @@ import Testing
     #expect(message.headers["From"] == "sender@example.com")
     #expect(message.headers["To"] == "recipient@example.com")
     #expect(message.headers["Subject"] == "Test Message")
-    #expect(message.date == "Mon, 01 Jan 2024 12:00:00 -0800")
+    #expect(message.date?.ISO8601Format() == "2024-01-01T20:00:00Z")
     #expect(message.mimeVersion == "1.0")
     #expect(message.contentType != nil)
     #expect(message.contentType?.contains("multipart/mixed") == true)
