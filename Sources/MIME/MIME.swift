@@ -54,11 +54,13 @@ public struct MIMEMessage: Sendable {
 /// print(part.body)          // The actual content
 /// print(part.charset)       // e.g., "utf-8"
 /// ```
-public struct MIMEPart: Sendable {
+public struct MIMEPart: Sendable, Identifiable {
+    public let id: UUID
     public let headers: MIMEHeaders
     public let body: String
 
-    public init(headers: MIMEHeaders, body: String) {
+    public init(id: UUID = UUID(), headers: MIMEHeaders, body: String) {
+        self.id = id
         self.headers = headers
         self.body = body
     }
