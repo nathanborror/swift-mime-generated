@@ -510,3 +510,40 @@ import Testing
     #expect(message.parts[0].contentType == nil)
     #expect(message.parts[0].body.contains("This message has no Content-Type header"))
 }
+
+@Test func testBodyPropertyForNonMultipartMessages() async throws {
+    // Test non-multipart message returns body
+    let simpleMessage = """
+        From: sender@example.com
+        Content-Type: text/plain
+
+        Hello, World!
+        This is a simple message.
+        """
+
+    let message = try MIMEParser.parse(simpleMessage)
+
+    #expect(message.body != nil)
+    #expect(message.body?.contains("Hello, World!") == true)
+    #expect(message.body?.contains("This is a simple message.") == true)
+
+    // Test multipart message returns nil
+    let multipartMessage = """
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+
+        Part 1
+        --test
+        Content-Type: text/html
+
+        Part 2
+        --test--
+        """
+
+    let multipart = try MIMEParser.parse(multipartMessage)
+
+    #expect(multipart.body == nil)
+    #expect(multipart.parts.count == 2)
+}

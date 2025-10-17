@@ -40,6 +40,23 @@ public struct MIMEMessage: Sendable {
     public var contentType: String? {
         headers["Content-Type"]
     }
+
+    /// The body content for non-multipart messages.
+    ///
+    /// For non-multipart messages (those without a boundary parameter),
+    /// this returns the body content directly. For multipart messages,
+    /// this returns nil and you should access individual parts instead.
+    ///
+    /// ```swift
+    /// let message = try MIMEParser.parse(simpleMessage)
+    /// if let body = message.body {
+    ///     print(body)  // Direct access to body content
+    /// }
+    /// ```
+    public var body: String? {
+        guard parts.count == 1 else { return nil }
+        return parts[0].body
+    }
 }
 
 // MARK: - MIME Part

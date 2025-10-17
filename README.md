@@ -83,6 +83,12 @@ It will be parsed as a single part.
 
 let message = try MIMEParser.parse(simpleMessage)
 
+// Convenient access to body for non-multipart messages
+if let body = message.body {
+    print(body)  // "This is a simple text message..."
+}
+
+// Or access via parts array
 print(message.parts.count)  // 1
 print(message.parts[0].contentType)  // "text/plain"
 print(message.parts[0].body)  // "This is a simple text message..."
@@ -232,6 +238,7 @@ Represents a complete MIME message with headers and parts.
 
 - `headers: MIMEHeaders` - The top-level headers
 - `parts: [MIMEPart]` - The individual parts of the message
+- `body: String?` - The body content for non-multipart messages (returns nil for multipart messages)
 - `from: String?` - The "From" header value
 - `to: String?` - The "To" header value
 - `subject: String?` - The "Subject" header value
