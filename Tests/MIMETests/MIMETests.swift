@@ -331,6 +331,39 @@ import Testing
     #expect(message.contentType?.contains("multipart/mixed") == true)
 }
 
+@Test func testMIMEVersionOptional() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        To: recipient@example.com
+        Subject: Test Without MIME-Version
+        Date: Mon, 01 Jan 2024 12:00:00 -0800
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+
+        This message has no MIME-Version header
+        --test
+        Content-Type: text/html
+
+        <p>Still works!</p>
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    // Verify MIME-Version is not present
+    #expect(message.mimeVersion == nil)
+    #expect(message.headers["MIME-Version"] == nil)
+
+    // Verify message parses correctly without MIME-Version
+    #expect(message.headers["From"] == "sender@example.com")
+    #expect(message.headers["Subject"] == "Test Without MIME-Version")
+    #expect(message.parts.count == 2)
+    #expect(message.parts[0].contentType == "text/plain")
+    #expect(message.parts[1].contentType == "text/html")
+}
+
 @Test func testCharsetExtraction() async throws {
     let mimeContent = """
         Content-Type: multipart/mixed; boundary="test"

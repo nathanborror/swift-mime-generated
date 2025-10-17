@@ -5,6 +5,7 @@ A Swift package for parsing MIME formatted multipart data. This library provides
 ## Features
 
 - ✅ Parse MIME multipart messages according to RFC 2045 and RFC 2046
+- ✅ Optional MIME-Version header (not required for parsing)
 - ✅ Case-insensitive header access
 - ✅ Support for quoted and unquoted boundaries
 - ✅ Automatic charset detection
@@ -37,7 +38,6 @@ import MIME
 let mimeString = """
 From: sender@example.com
 Date: Mon, 01 Jan 2024 12:00:00 -0800
-MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="simple"
 
 --simple
@@ -88,10 +88,13 @@ if message.hasPart(withContentType: "application/json") {
 Headers are case-insensitive:
 
 ```swift
-// All of these work
+// All of these work (case-insensitive)
 let contentType1 = message.headers["Content-Type"]
 let contentType2 = message.headers["content-type"]
 let contentType3 = message.headers["CONTENT-TYPE"]
+
+// MIME-Version header is optional
+let mimeVersion = message.mimeVersion  // May be nil
 ```
 
 Part-specific headers:
@@ -210,7 +213,7 @@ Represents a complete MIME message with headers and parts.
 - `to: String?` - The "To" header value
 - `subject: String?` - The "Subject" header value
 - `date: String?` - The "Date" header value
-- `mimeVersion: String?` - The "MIME-Version" header value
+- `mimeVersion: String?` - The "MIME-Version" header value (optional, may be nil)
 - `contentType: String?` - The "Content-Type" header value
 
 #### Methods
