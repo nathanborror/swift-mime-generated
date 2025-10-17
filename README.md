@@ -4,7 +4,7 @@ A Swift package for parsing MIME formatted multipart data. This library provides
 
 ## Features
 
-- ✅ Parse MIME multipart messages according to RFC 2045 and RFC 2046
+- ✅ Parse MIME messages (both multipart and non-multipart) according to RFC 2045 and RFC 2046
 - ✅ Optional MIME-Version header (not required for parsing)
 - ✅ Case-insensitive header access
 - ✅ Support for quoted and unquoted boundaries
@@ -30,7 +30,7 @@ dependencies: [
 
 ## Usage
 
-### Basic Example
+### Multipart Message Example
 
 ```swift
 import MIME
@@ -64,6 +64,28 @@ for part in message.parts {
     print(part.contentType)  // "text/plain", "text/html"
     print(part.body)
 }
+```
+
+### Non-Multipart Message Example
+
+Non-multipart messages (like `text/plain`, `text/html`, `application/json`, etc.) are automatically treated as a single part:
+
+```swift
+let simpleMessage = """
+From: sender@example.com
+To: recipient@example.com
+Subject: Simple Text Message
+Content-Type: text/plain; charset="utf-8"
+
+This is a simple text message without multipart formatting.
+It will be parsed as a single part.
+"""
+
+let message = try MIMEParser.parse(simpleMessage)
+
+print(message.parts.count)  // 1
+print(message.parts[0].contentType)  // "text/plain"
+print(message.parts[0].body)  // "This is a simple text message..."
 ```
 
 ### Finding Specific Parts
@@ -193,13 +215,14 @@ if let review = message.firstPart(withContentType: "text/review") {
 
 ### `MIMEParser`
 
-The main entry point for parsing MIME messages.
+The main entry point for parsing MIME messages. Supports both multipart messages (with boundaries) and non-multipart messages.
 
 #### Methods
 
 - `static func parse(_ content: String) throws -> MIMEMessage`
-  - Parses a MIME multipart message from a string
-  - Throws: `MIMEError.noBoundary` if no boundary is found
+  - Parses a MIME message from a string
+  - Multipart messages are parsed using the boundary specified in the Content-Type header
+  - Non-multipart messages are treated as a single part containing the entire body
 
 ### `MIMEMessage`
 
@@ -253,7 +276,6 @@ Errors that can occur during parsing.
 
 #### Cases
 
-- `noBoundary` - No boundary parameter found in the Content-Type header
 - `invalidFormat` - The MIME message format is invalid
 - `invalidEncoding` - The character encoding is invalid or unsupported
 

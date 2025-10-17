@@ -143,9 +143,12 @@ public struct MIMEHeaders: Sendable {
 
 // MARK: - MIME Parser
 
-/// Parses MIME multipart messages according to RFC 2045 and RFC 2046.
+/// Parses MIME messages according to RFC 2045 and RFC 2046.
 ///
-/// Example usage:
+/// Supports both multipart messages (with boundaries) and non-multipart messages
+/// (like text/plain, text/html, application/json, etc.).
+///
+/// Example usage for multipart:
 ///
 /// ```swift
 /// let mimeString = """
@@ -160,16 +163,32 @@ public struct MIMEHeaders: Sendable {
 ///     """
 ///
 /// let message = try MIMEParser.parse(mimeString)
-/// print(message.from)  // "sender@example.com"
 /// print(message.parts.count)  // 1
+/// ```
+///
+/// Example usage for non-multipart:
+///
+/// ```swift
+/// let simpleMessage = """
+///     From: sender@example.com
+///     Content-Type: text/plain
+///
+///     Hello, World!
+///     """
+///
+/// let message = try MIMEParser.parse(simpleMessage)
+/// print(message.parts.count)  // 1
+/// print(message.parts[0].body)  // "Hello, World!"
 /// ```
 public enum MIMEParser {
 
-    /// Parse a MIME multipart message from a string.
+    /// Parse a MIME message from a string.
+    ///
+    /// Supports both multipart messages (with boundaries) and non-multipart messages.
+    /// Non-multipart messages are treated as a single part containing the entire body.
     ///
     /// - Parameter content: The MIME message content as a string
     /// - Returns: A parsed `MIMEMessage` with headers and parts
-    /// - Throws: `MIMEError.noBoundary` if no boundary is found in Content-Type header
     public static func parse(_ content: String) throws -> MIMEMessage {
         let lines = content.components(separatedBy: .newlines)
 
@@ -192,18 +211,19 @@ public enum MIMEParser {
 
         let headers = parseHeaders(headerLines)
 
-        // Extract boundary from Content-Type header
-        guard let boundary = extractBoundary(from: headers["Content-Type"]) else {
-            throw MIMEError.noBoundary
-        }
-
         // Get remaining content
         let bodyContent = lines[currentLine...].joined(separator: "\n")
 
-        // Parse parts
-        let parts = try parseParts(bodyContent, boundary: boundary)
-
-        return MIMEMessage(headers: headers, parts: parts)
+        // Extract boundary from Content-Type header
+        if let boundary = extractBoundary(from: headers["Content-Type"]) {
+            // Multipart message - parse parts
+            let parts = try parseParts(bodyContent, boundary: boundary)
+            return MIMEMessage(headers: headers, parts: parts)
+        } else {
+            // Non-multipart message - treat entire body as single part
+            let part = MIMEPart(headers: headers, body: bodyContent)
+            return MIMEMessage(headers: headers, parts: [part])
+        }
     }
 
     /// Extract boundary from Content-Type header
@@ -337,7 +357,7 @@ public enum MIMEParser {
 
 /// Errors that can occur during MIME parsing
 public enum MIMEError: Error, CustomStringConvertible {
-    /// No boundary parameter found in the Content-Type header
+    /// No boundary parameter found in the Content-Type header (deprecated - no longer thrown)
     case noBoundary
     /// The MIME message format is invalid
     case invalidFormat

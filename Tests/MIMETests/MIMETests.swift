@@ -193,7 +193,7 @@ import Testing
     #expect(message.parts[1].body == "Part 2")
 }
 
-@Test func testMissingBoundaryThrowsError() async throws {
+@Test func testMultipartWithoutBoundaryTreatedAsSinglePart() async throws {
     let mimeContent = """
         From: Test <test@example.com>
         Content-Type: multipart/mixed
@@ -201,13 +201,15 @@ import Testing
         --test
         Content-Type: text/plain
 
-        This should fail
+        This is treated as a single part
         --test--
         """
 
-    #expect(throws: MIMEError.self) {
-        try MIMEParser.parse(mimeContent)
-    }
+    let message = try MIMEParser.parse(mimeContent)
+
+    // Without a boundary parameter, even multipart/* is treated as a single part
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].body.contains("This is treated as a single part"))
 }
 
 @Test func testEmptyParts() async throws {
@@ -429,4 +431,82 @@ import Testing
 
     #expect(part.decodedBody == "Hello, 世界!")
     #expect(part.body == part.decodedBody)
+}
+
+@Test func testNonMultipartTextPlain() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        To: recipient@example.com
+        Subject: Simple Text Message
+        Date: Mon, 01 Jan 2024 12:00:00 -0800
+        Content-Type: text/plain; charset="utf-8"
+
+        This is a simple text message without multipart.
+        It should be treated as a single part.
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].contentType == "text/plain")
+    #expect(message.parts[0].charset == "utf-8")
+    #expect(message.parts[0].body.contains("This is a simple text message"))
+}
+
+@Test func testNonMultipartTextHtml() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        Content-Type: text/html
+
+        <html>
+        <body>
+        <h1>Hello World</h1>
+        <p>This is an HTML message.</p>
+        </body>
+        </html>
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].contentType == "text/html")
+    #expect(message.parts[0].body.contains("<h1>Hello World</h1>"))
+    #expect(message.parts[0].body.contains("<p>This is an HTML message.</p>"))
+}
+
+@Test func testNonMultipartApplicationJson() async throws {
+    let mimeContent = """
+        From: api@example.com
+        Content-Type: application/json
+
+        {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "active": true
+        }
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].contentType == "application/json")
+    #expect(message.parts[0].body.contains("\"name\": \"John Doe\""))
+    #expect(message.parts[0].body.contains("\"active\": true"))
+}
+
+@Test func testNonMultipartNoContentType() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        To: recipient@example.com
+        Subject: Message without Content-Type
+
+        This message has no Content-Type header.
+        It should still parse as a single part.
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].contentType == nil)
+    #expect(message.parts[0].body.contains("This message has no Content-Type header"))
 }
