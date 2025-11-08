@@ -217,7 +217,272 @@ if let review = message.firstPart(withContentType: "text/review") {
 }
 ```
 
+## Validation
+
+The MIME validator allows you to validate MIME messages according to RFC 2045/2046 and custom rules. You can set header expectations for specific content types, ensuring that messages meet your requirements.
+
+### Basic Validation
+
+```swift
+import MIME
+
+let mimeString = """
+Content-Type: text/plain
+
+Hello, World!
+"""
+
+let validator = MIMEValidator()
+let result = try validator.validate(mimeString)
+
+if result.isValid {
+    print("✓ Message is valid")
+} else {
+    print("✗ Message is invalid")
+    for error in result.errors {
+        print("  • \(error)")
+    }
+}
+```
+
+### Validation with Header Expectations
+
+You can define custom header expectations for specific content types:
+
+```swift
+let expectation = MIMEHeaderExpectation(
+    contentType: "text/plain",
+    requiredHeaders: ["Content-Type", "Content-Transfer-Encoding"],
+    recommendedHeaders: ["Content-Disposition"],
+    expectedValues: ["Content-Transfer-Encoding": "7bit"]
+)
+
+let validator = MIMEValidator(expectations: [expectation])
+let result = try validator.validate(mimeString)
+
+print(result.summary)  // "✓ Validation passed" or "✗ Validation failed with N error(s)"
+print(result.description)  // Detailed report with errors and warnings
+```
+
+### Validation Options
+
+Configure validation behavior with various options:
+
+```swift
+// Require MIME-Version header
+let validator = MIMEValidator(requireMimeVersion: true)
+
+// Strict multipart validation (requires boundary and non-empty parts)
+let validator = MIMEValidator(strictMultipart: true)
+
+// Use default expectations for common content types
+let validator = MIMEValidator.withDefaults()
+```
+
+### Validating Multipart Messages
+
+The validator automatically validates all parts in multipart messages:
+
+```swift
+let multipartMessage = """
+Content-Type: multipart/mixed; boundary="boundary123"
+
+--boundary123
+Content-Type: text/plain
+Content-Transfer-Encoding: 7bit
+
+First part
+--boundary123
+Content-Type: text/html
+Content-Transfer-Encoding: quoted-printable
+
+<p>Second part</p>
+--boundary123--
+"""
+
+let plainExpectation = MIMEHeaderExpectation(
+    contentType: "text/plain",
+    requiredHeaders: ["Content-Type", "Content-Transfer-Encoding"]
+)
+
+let htmlExpectation = MIMEHeaderExpectation(
+    contentType: "text/html",
+    requiredHeaders: ["Content-Type", "Content-Transfer-Encoding"]
+)
+
+let validator = MIMEValidator(expectations: [plainExpectation, htmlExpectation])
+let result = try validator.validate(multipartMessage)
+
+if result.isValid {
+    print("All parts are valid!")
+}
+```
+
+### Custom Validation Logic
+
+You can add custom validation logic using a closure:
+
+```swift
+let expectation = MIMEHeaderExpectation(
+    contentType: "text/plain",
+    customValidator: { headers in
+        // Check for custom header
+        guard let customHeader = headers["X-Custom-Header"],
+              customHeader == "required-value" else {
+            return [.custom("X-Custom-Header must be 'required-value'")]
+        }
+        return []
+    }
+)
+
+let validator = MIMEValidator(expectations: [expectation])
+let result = try validator.validate(mimeString)
+```
+
+### Preset Expectations
+
+The library includes preset expectations for common content types:
+
+```swift
+// Available presets:
+// - MIMEHeaderExpectation.textPlain
+// - MIMEHeaderExpectation.textHtml
+// - MIMEHeaderExpectation.applicationJson
+// - MIMEHeaderExpectation.multipartMixed
+// - MIMEHeaderExpectation.multipartAlternative
+
+let validator = MIMEValidator(expectations: [
+    .textPlain,
+    .textHtml,
+    .applicationJson
+])
+```
+
+### Validation Results
+
+The `MIMEValidationResult` provides detailed information about validation:
+
+```swift
+let result = try validator.validate(mimeString)
+
+// Check if valid
+if result.isValid {
+    print("Valid!")
+}
+
+// Get errors (empty if valid)
+for error in result.errors {
+    print("Error: \(error)")
+}
+
+// Get warnings (non-fatal issues)
+for warning in result.warnings {
+    print("Warning: \(warning)")
+}
+
+// Get summary
+print(result.summary)  // "✓ Validation passed" or "✗ Validation failed with 2 error(s)"
+
+// Get full description
+print(result.description)  // Includes summary, errors, and warnings
+```
+
+### Validating Individual Parts
+
+You can validate individual parts separately:
+
+```swift
+let message = try MIMEParser.parse(multipartMessage)
+let part = message.parts[0]
+
+let expectation = MIMEHeaderExpectation(
+    contentType: "text/plain",
+    requiredHeaders: ["Content-Type"]
+)
+
+let validator = MIMEValidator(expectations: [expectation])
+let result = validator.validatePart(part, index: 0)
+
+if result.isValid {
+    print("Part is valid!")
+}
+```
+
 ## API Reference
+</thinking>
+
+### `MIMEValidator`
+
+Validates MIME messages according to RFC 2045/2046 and custom rules.
+
+#### Initialization
+
+- `init(expectations: [MIMEHeaderExpectation] = [], requireMimeVersion: Bool = false, strictMultipart: Bool = true)`
+  - Creates a validator with custom expectations
+- `static func withDefaults(requireMimeVersion: Bool = false, strictMultipart: Bool = true) -> MIMEValidator`
+  - Creates a validator with default expectations for common content types
+
+#### Methods
+
+- `func validate(_ message: MIMEMessage) -> MIMEValidationResult`
+  - Validates a parsed MIME message
+- `func validate(_ content: String) throws -> MIMEValidationResult`
+  - Parses and validates a MIME message string
+- `func validatePart(_ part: MIMEPart, index: Int = 0) -> MIMEValidationResult`
+  - Validates a specific part of a message
+
+### `MIMEHeaderExpectation`
+
+Defines header expectations for a specific content type.
+
+#### Initialization
+
+- `init(contentType: String, requiredHeaders: Set<String> = [], recommendedHeaders: Set<String> = [], expectedValues: [String: String] = [:], customValidator: ((MIMEHeaders) -> [MIMEValidationError])? = nil)`
+  - Creates a header expectation for a content type
+
+#### Presets
+
+- `.textPlain` - Expectation for text/plain content
+- `.textHtml` - Expectation for text/html content
+- `.applicationJson` - Expectation for application/json content
+- `.multipartMixed` - Expectation for multipart/mixed content
+- `.multipartAlternative` - Expectation for multipart/alternative content
+
+### `MIMEValidationResult`
+
+The result of a validation operation.
+
+#### Properties
+
+- `isValid: Bool` - Whether the validation passed
+- `errors: [MIMEValidationError]` - List of validation errors (empty if valid)
+- `warnings: [String]` - List of validation warnings (non-fatal issues)
+- `summary: String` - A human-readable summary
+- `description: String` - A detailed description including errors and warnings
+
+#### Factory Methods
+
+- `static func success(warnings: [String] = []) -> MIMEValidationResult`
+  - Creates a successful validation result
+- `static func failure(errors: [MIMEValidationError], warnings: [String] = []) -> MIMEValidationResult`
+  - Creates a failed validation result
+
+### `MIMEValidationError`
+
+Errors that can occur during validation.
+
+#### Cases
+
+- `missingRequiredHeader(String)` - A required header is missing
+- `invalidHeaderValue(header: String, expected: String, actual: String?)` - A header value doesn't match expected format
+- `invalidContentType(String)` - Content-Type header is missing or invalid
+- `missingBoundary` - Multipart message is missing boundary parameter
+- `emptyMultipart` - Multipart message has no parts
+- `invalidPartIndex(Int)` - Part index is out of bounds
+- `partMissingHeader(partIndex: Int, header: String)` - A part is missing required headers
+- `partInvalidHeaderValue(partIndex: Int, header: String, expected: String, actual: String?)` - A part has an invalid header value
+- `custom(String)` - Custom validation error
+
 
 ### `MIMEParser`
 
