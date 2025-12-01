@@ -14,8 +14,8 @@ import Foundation
 /// }
 /// ```
 public struct MIMEMessage: Sendable {
-    public let headers: MIMEHeaders
-    public let parts: [MIMEPart]
+    public var headers: MIMEHeaders
+    public var parts: [MIMEPart]
 
     public init(headers: MIMEHeaders, parts: [MIMEPart]) {
         self.headers = headers
@@ -57,6 +57,49 @@ public struct MIMEMessage: Sendable {
         guard parts.count == 1 else { return nil }
         return parts[0].body
     }
+
+    /// Encodes the MIME message to a string representation.
+    ///
+    /// For multipart messages, this generates a properly formatted multipart message
+    /// with boundaries. For non-multipart messages, it generates a simple message
+    /// with headers and body.
+    ///
+    /// ```swift
+    /// var message = try MIMEParser.parse(mimeString)
+    /// message.headers["From"] = "new@example.com"
+    /// let encoded = message.encode()
+    /// ```
+    ///
+    /// - Returns: The MIME message as a string
+    public func encode() -> String {
+        var result = ""
+
+        // Encode headers
+        for (key, value) in headers {
+            result += "\(key): \(value)\n"
+        }
+
+        // Extract boundary if present
+        if let boundary = MIMEParser.extractBoundary(from: headers["Content-Type"]) {
+            // Multipart message
+            result += "\n"
+
+            for part in parts {
+                result += "--\(boundary)\n"
+                result += part.encode()
+            }
+
+            result += "--\(boundary)--\n"
+        } else {
+            // Non-multipart message
+            result += "\n"
+            if parts.count == 1 {
+                result += parts[0].body
+            }
+        }
+
+        return result
+    }
 }
 
 // MARK: - MIME Part
@@ -73,8 +116,8 @@ public struct MIMEMessage: Sendable {
 /// ```
 public struct MIMEPart: Sendable, Identifiable {
     public let id: UUID
-    public let headers: MIMEHeaders
-    public let body: String
+    public var headers: MIMEHeaders
+    public var body: String
 
     public init(id: UUID = UUID(), headers: MIMEHeaders, body: String) {
         self.id = id
@@ -120,6 +163,35 @@ public struct MIMEPart: Sendable, Identifiable {
     public var decodedBody: String {
         body
     }
+
+    /// Encodes the MIME part to a string representation.
+    ///
+    /// This generates the headers and body content for this part.
+    ///
+    /// ```swift
+    /// var part = message.parts[0]
+    /// part.body = "New content"
+    /// let encoded = part.encode()
+    /// ```
+    ///
+    /// - Returns: The MIME part as a string
+    public func encode() -> String {
+        var result = ""
+
+        // Encode headers
+        for (key, value) in headers {
+            result += "\(key): \(value)\n"
+        }
+
+        // Empty line between headers and body
+        result += "\n"
+
+        // Body
+        result += body
+        result += "\n"
+
+        return result
+    }
 }
 
 // MARK: - MIME Headers
@@ -135,27 +207,36 @@ public struct MIMEPart: Sendable, Identifiable {
 /// print(headers["CONTENT-TYPE"])  // "text/plain"
 /// ```
 public struct MIMEHeaders: Sendable {
-    private var storage: [String: String] = [:]
+    private var storage: [String: (originalKey: String, value: String)] = [:]
 
     public init() {}
 
     public init(_ dictionary: [String: String]) {
         for (key, value) in dictionary {
-            storage[key.lowercased()] = value
+            storage[key.lowercased()] = (originalKey: key, value: value)
         }
     }
 
     public subscript(key: String) -> String? {
-        get { storage[key.lowercased()] }
-        set { storage[key.lowercased()] = newValue }
+        get { storage[key.lowercased()]?.value }
+        set {
+            let lowercasedKey = key.lowercased()
+            if let newValue = newValue {
+                // Preserve the original key casing, or use existing if already present
+                let originalKey = storage[lowercasedKey]?.originalKey ?? key
+                storage[lowercasedKey] = (originalKey: originalKey, value: newValue)
+            } else {
+                storage[lowercasedKey] = nil
+            }
+        }
     }
 
-    public var keys: Dictionary<String, String>.Keys {
-        storage.keys
+    public var keys: [String] {
+        storage.values.map { $0.originalKey }
     }
 
-    public var values: Dictionary<String, String>.Values {
-        storage.values
+    public var values: [String] {
+        storage.values.map { $0.value }
     }
 
     public var count: Int {
@@ -253,7 +334,7 @@ public enum MIMEParser {
     }
 
     /// Extract boundary from Content-Type header
-    private static func extractBoundary(from contentType: String?) -> String? {
+    static func extractBoundary(from contentType: String?) -> String? {
         guard let contentType = contentType else { return nil }
 
         // Look for boundary="value" or boundary=value
@@ -454,14 +535,15 @@ extension MIMEHeaders: ExpressibleByDictionaryLiteral {
 }
 
 extension MIMEHeaders: Collection {
-    public typealias Index = Dictionary<String, String>.Index
-    public typealias Element = Dictionary<String, String>.Element
+    public typealias Index = Dictionary<String, (originalKey: String, value: String)>.Index
+    public typealias Element = (key: String, value: String)
 
     public var startIndex: Index { storage.startIndex }
     public var endIndex: Index { storage.endIndex }
 
     public subscript(position: Index) -> Element {
-        storage[position]
+        let item = storage[position]
+        return (key: item.value.originalKey, value: item.value.value)
     }
 
     public func index(after i: Index) -> Index {
@@ -471,6 +553,6 @@ extension MIMEHeaders: Collection {
 
 extension MIMEHeaders: CustomStringConvertible {
     public var description: String {
-        storage.map { "\($0.key): \($0.value)" }.joined(separator: "\n")
+        storage.map { "\($0.value.originalKey): \($0.value.value)" }.joined(separator: "\n")
     }
 }

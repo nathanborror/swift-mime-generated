@@ -111,6 +111,95 @@ if message.hasPart(withContentType: "application/json") {
 }
 ```
 
+### Editing and Encoding MIME Messages
+
+MIME messages and parts have mutable properties, making them easy to edit. Once edited, you can encode them back to MIME format.
+
+#### Editing Headers
+
+```swift
+var message = try MIMEParser.parse(mimeString)
+
+// Edit top-level headers
+message.headers["From"] = "new-sender@example.com"
+message.headers["Subject"] = "Updated subject"
+
+// Edit part headers
+message.parts[0].headers["Content-Type"] = "text/html"
+```
+
+#### Editing Body Content
+
+```swift
+var message = try MIMEParser.parse(mimeString)
+
+// Edit part body
+message.parts[0].body = "This is the new content!"
+
+// For non-multipart messages, edit the single part
+if message.parts.count == 1 {
+    message.parts[0].body = "New simple message content"
+}
+```
+
+#### Adding and Removing Parts
+
+```swift
+var message = try MIMEParser.parse(mimeString)
+
+// Add a new part
+var newPartHeaders = MIMEHeaders()
+newPartHeaders["Content-Type"] = "text/plain"
+let newPart = MIMEPart(headers: newPartHeaders, body: "New part content")
+message.parts.append(newPart)
+
+// Remove a part
+message.parts.remove(at: 1)
+```
+
+#### Encoding Back to MIME Format
+
+After editing, encode the message back to a string:
+
+```swift
+var message = try MIMEParser.parse(mimeString)
+
+// Make some edits
+message.headers["From"] = "updated@example.com"
+message.parts[0].body = "Updated content"
+
+// Encode back to MIME format
+let encodedString = message.encode()
+print(encodedString)
+// Output:
+// From: updated@example.com
+// Content-Type: multipart/mixed; boundary="simple"
+//
+// --simple
+// Content-Type: text/plain
+//
+// Updated content
+// --simple--
+```
+
+#### Encoding Individual Parts
+
+You can also encode individual parts:
+
+```swift
+var part = message.parts[0]
+part.body = "Modified part content"
+part.headers["Custom-Header"] = "Custom Value"
+
+let encodedPart = part.encode()
+print(encodedPart)
+// Output:
+// Content-Type: text/plain
+// Custom-Header: Custom Value
+//
+// Modified part content
+```
+
 ### Accessing Headers
 
 Headers are case-insensitive:
@@ -409,7 +498,6 @@ if result.isValid {
 ```
 
 ## API Reference
-</thinking>
 
 ### `MIMEValidator`
 
@@ -519,6 +607,8 @@ Represents a complete MIME message with headers and parts.
   - Returns the first part with a specific content type
 - `func hasPart(withContentType contentType: String) -> Bool`
   - Returns true if any part has the specified content type
+- `func encode() -> String`
+  - Encodes the message back to MIME format string
 
 ### `MIMEPart`
 
@@ -531,6 +621,11 @@ Represents a single part of a multipart MIME message.
 - `contentType: String?` - The content type (e.g., "text/plain")
 - `charset: String?` - The charset (e.g., "utf-8")
 - `decodedBody: String` - The decoded body content
+
+#### Methods
+
+- `func encode() -> String`
+  - Encodes the part back to MIME format string
 
 ### `MIMEHeaders`
 

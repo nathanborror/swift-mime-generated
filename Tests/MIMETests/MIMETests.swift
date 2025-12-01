@@ -547,3 +547,180 @@ import Testing
     #expect(multipart.body == nil)
     #expect(multipart.parts.count == 2)
 }
+
+@Test func testEditingMessageHeaders() async throws {
+    let mimeContent = """
+        From: original@example.com
+        Subject: Original Subject
+        Content-Type: text/plain
+
+        Original content
+        """
+
+    var message = try MIMEParser.parse(mimeContent)
+
+    // Edit headers
+    message.headers["From"] = "updated@example.com"
+    message.headers["Subject"] = "Updated Subject"
+    message.headers["X-Custom-Header"] = "Custom Value"
+
+    #expect(message.headers["From"] == "updated@example.com")
+    #expect(message.headers["Subject"] == "Updated Subject")
+    #expect(message.headers["X-Custom-Header"] == "Custom Value")
+}
+
+@Test func testEditingPartBody() async throws {
+    let mimeContent = """
+        Content-Type: text/plain
+
+        Original content
+        """
+
+    var message = try MIMEParser.parse(mimeContent)
+
+    // Edit body
+    message.parts[0].body = "Updated content"
+
+    #expect(message.parts[0].body == "Updated content")
+    #expect(message.body == "Updated content")
+}
+
+@Test func testEditingPartHeaders() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+
+        Part 1
+        --test--
+        """
+
+    var message = try MIMEParser.parse(mimeContent)
+
+    // Edit part headers
+    message.parts[0].headers["Content-Type"] = "text/html"
+    message.parts[0].headers["X-Custom"] = "value"
+
+    #expect(message.parts[0].headers["Content-Type"] == "text/html")
+    #expect(message.parts[0].headers["X-Custom"] == "value")
+}
+
+@Test func testEncodingNonMultipartMessage() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        Content-Type: text/plain
+
+        Hello, World!
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+    let encoded = message.encode()
+
+    #expect(encoded.contains("From: sender@example.com"))
+    #expect(encoded.contains("Content-Type: text/plain"))
+    #expect(encoded.contains("Hello, World!"))
+}
+
+@Test func testEncodingMultipartMessage() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        Content-Type: multipart/mixed; boundary="simple"
+
+        --simple
+        Content-Type: text/plain
+
+        Hello, World!
+        --simple
+        Content-Type: text/html
+
+        <h1>Hello</h1>
+        --simple--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+    let encoded = message.encode()
+
+    #expect(encoded.contains("From: sender@example.com"))
+    #expect(encoded.contains("Content-Type: multipart/mixed; boundary=\"simple\""))
+    #expect(encoded.contains("--simple"))
+    #expect(encoded.contains("text/plain"))
+    #expect(encoded.contains("Hello, World!"))
+    #expect(encoded.contains("text/html"))
+    #expect(encoded.contains("<h1>Hello</h1>"))
+    #expect(encoded.contains("--simple--"))
+}
+
+@Test func testEncodingPart() async throws {
+    var headers = MIMEHeaders()
+    headers["Content-Type"] = "text/plain"
+    headers["X-Custom"] = "value"
+
+    let part = MIMEPart(headers: headers, body: "Test content")
+    let encoded = part.encode()
+
+    #expect(encoded.contains("Content-Type: text/plain"))
+    #expect(encoded.contains("X-Custom: value"))
+    #expect(encoded.contains("Test content"))
+}
+
+@Test func testRoundTripParseEditEncode() async throws {
+    let original = """
+        From: original@example.com
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+
+        Original content
+        --test--
+        """
+
+    // Parse
+    var message = try MIMEParser.parse(original)
+
+    // Edit
+    message.headers["From"] = "updated@example.com"
+    message.parts[0].body = "Updated content"
+
+    // Encode
+    let encoded = message.encode()
+
+    // Parse again
+    let reparsed = try MIMEParser.parse(encoded)
+
+    // Verify
+    #expect(reparsed.headers["From"] == "updated@example.com")
+    #expect(reparsed.parts[0].body == "Updated content")
+}
+
+@Test func testAddingAndRemovingParts() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+
+        Part 1
+        --test--
+        """
+
+    var message = try MIMEParser.parse(mimeContent)
+
+    #expect(message.parts.count == 1)
+
+    // Add a new part
+    var newHeaders = MIMEHeaders()
+    newHeaders["Content-Type"] = "text/html"
+    let newPart = MIMEPart(headers: newHeaders, body: "<p>New part</p>")
+    message.parts.append(newPart)
+
+    #expect(message.parts.count == 2)
+    #expect(message.parts[1].body == "<p>New part</p>")
+
+    // Remove a part
+    message.parts.remove(at: 0)
+
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].body == "<p>New part</p>")
+}
