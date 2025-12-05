@@ -333,6 +333,21 @@ public enum MIMEParser {
         }
     }
 
+    /// Parse a MIME message from Data.
+    ///
+    /// Converts the Data to a UTF-8 string and parses it as a MIME message.
+    /// Supports both multipart messages (with boundaries) and non-multipart messages.
+    ///
+    /// - Parameter data: The MIME message content as Data
+    /// - Returns: A parsed `MIMEMessage` with headers and parts
+    /// - Throws: `MIMEError.invalidUTF8` if the data cannot be decoded as UTF-8, or other parsing errors
+    public static func parse(_ data: Data) throws -> MIMEMessage {
+        guard let content = String(data: data, encoding: .utf8) else {
+            throw MIMEError.invalidUTF8
+        }
+        return try parse(content)
+    }
+
     /// Extract boundary from Content-Type header
     static func extractBoundary(from contentType: String?) -> String? {
         guard let contentType = contentType else { return nil }
@@ -470,6 +485,8 @@ public enum MIMEError: Error, CustomStringConvertible {
     case invalidFormat
     /// The character encoding is invalid or unsupported
     case invalidEncoding
+    /// The data cannot be decoded as UTF-8
+    case invalidUTF8
 
     public var description: String {
         switch self {
@@ -479,6 +496,8 @@ public enum MIMEError: Error, CustomStringConvertible {
             return "Invalid MIME format"
         case .invalidEncoding:
             return "Invalid character encoding"
+        case .invalidUTF8:
+            return "Data cannot be decoded as UTF-8"
         }
     }
 }

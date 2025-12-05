@@ -724,3 +724,41 @@ import Testing
     #expect(message.parts.count == 1)
     #expect(message.parts[0].body == "<p>New part</p>")
 }
+
+@Test func testParsingFromData() async throws {
+    let mimeContent = """
+        From: Test User <test@example.com>
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+
+        Hello from Data!
+        --test
+        Content-Type: text/html
+
+        <p>HTML from Data</p>
+        --test--
+        """
+
+    guard let data = mimeContent.data(using: .utf8) else {
+        Issue.record("Failed to create test data")
+        return
+    }
+
+    let message = try MIMEParser.parse(data)
+
+    #expect(message.headers["From"] == "Test User <test@example.com>")
+    #expect(message.parts.count == 2)
+    #expect(message.parts[0].body == "Hello from Data!")
+    #expect(message.parts[1].body == "<p>HTML from Data</p>")
+}
+
+@Test func testParsingFromInvalidUTF8Data() async throws {
+    // Create invalid UTF-8 data
+    let invalidData = Data([0xFF, 0xFE, 0xFD])
+
+    #expect(throws: MIMEError.invalidUTF8) {
+        try MIMEParser.parse(invalidData)
+    }
+}
