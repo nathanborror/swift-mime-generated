@@ -318,6 +318,11 @@ public enum MIMEParser {
 
         let headers = parseHeaders(headerLines)
 
+        // Check if headers are present
+        if headers.isEmpty {
+            throw MIMEError.noHeaders
+        }
+
         // Get remaining content
         let bodyContent = lines[currentLine...].joined(separator: "\n")
 
@@ -487,6 +492,8 @@ public enum MIMEError: Error, CustomStringConvertible {
     case invalidEncoding
     /// The data cannot be decoded as UTF-8
     case invalidUTF8
+    /// The MIME message has no headers
+    case noHeaders
 
     public var description: String {
         switch self {
@@ -498,6 +505,8 @@ public enum MIMEError: Error, CustomStringConvertible {
             return "Invalid character encoding"
         case .invalidUTF8:
             return "Data cannot be decoded as UTF-8"
+        case .noHeaders:
+            return "MIME message has no headers"
         }
     }
 }

@@ -666,6 +666,7 @@ Errors that can occur during parsing.
 - `invalidFormat` - The MIME message format is invalid
 - `invalidEncoding` - The character encoding is invalid or unsupported
 - `invalidUTF8` - The data cannot be decoded as UTF-8
+- `noHeaders` - The MIME message has no headers
 
 ## Testing
 

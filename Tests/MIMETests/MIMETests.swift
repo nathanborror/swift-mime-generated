@@ -762,3 +762,24 @@ import Testing
         try MIMEParser.parse(invalidData)
     }
 }
+
+@Test func testParsingWithNoHeaders() async throws {
+    // Content with no headers, just a body
+    let mimeContent = """
+
+        This is just body content with no headers.
+        """
+
+    #expect(throws: MIMEError.noHeaders) {
+        try MIMEParser.parse(mimeContent)
+    }
+}
+
+@Test func testParsingWithEmptyContent() async throws {
+    // Completely empty content
+    let mimeContent = ""
+
+    #expect(throws: MIMEError.noHeaders) {
+        try MIMEParser.parse(mimeContent)
+    }
+}
