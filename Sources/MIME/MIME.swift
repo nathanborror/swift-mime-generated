@@ -206,7 +206,7 @@ public struct MIMEPart: Sendable, Identifiable {
 /// print(headers["content-type"])  // "text/plain"
 /// print(headers["CONTENT-TYPE"])  // "text/plain"
 /// ```
-public struct MIMEHeaders: Sendable {
+public struct MIMEHeaders: Sendable, Equatable {
     private var storage: [(key: String, originalKey: String, value: String)] = []
 
     public init() {}
@@ -256,6 +256,14 @@ public struct MIMEHeaders: Sendable {
     public func contains(_ key: String) -> Bool {
         let lowercasedKey = key.lowercased()
         return storage.contains(where: { $0.key == lowercasedKey })
+    }
+
+    public static func == (lhs: MIMEHeaders, rhs: MIMEHeaders) -> Bool {
+        guard lhs.storage.count == rhs.storage.count else { return false }
+        return zip(lhs.storage, rhs.storage).allSatisfy { lhsElement, rhsElement in
+            lhsElement.key == rhsElement.key && lhsElement.originalKey == rhsElement.originalKey
+                && lhsElement.value == rhsElement.value
+        }
     }
 }
 
