@@ -207,36 +207,46 @@ public struct MIMEPart: Sendable, Identifiable {
 /// print(headers["CONTENT-TYPE"])  // "text/plain"
 /// ```
 public struct MIMEHeaders: Sendable {
-    private var storage: [String: (originalKey: String, value: String)] = [:]
+    private var storage: [(key: String, originalKey: String, value: String)] = []
 
     public init() {}
 
     public init(_ dictionary: [String: String]) {
         for (key, value) in dictionary {
-            storage[key.lowercased()] = (originalKey: key, value: value)
+            storage.append((key: key.lowercased(), originalKey: key, value: value))
         }
     }
 
     public subscript(key: String) -> String? {
-        get { storage[key.lowercased()]?.value }
+        get {
+            let lowercasedKey = key.lowercased()
+            return storage.first(where: { $0.key == lowercasedKey })?.value
+        }
         set {
             let lowercasedKey = key.lowercased()
             if let newValue = newValue {
-                // Preserve the original key casing, or use existing if already present
-                let originalKey = storage[lowercasedKey]?.originalKey ?? key
-                storage[lowercasedKey] = (originalKey: originalKey, value: newValue)
+                if let index = storage.firstIndex(where: { $0.key == lowercasedKey }) {
+                    // Update existing header, preserving original key casing
+                    storage[index] = (
+                        key: lowercasedKey, originalKey: storage[index].originalKey, value: newValue
+                    )
+                } else {
+                    // Add new header
+                    storage.append((key: lowercasedKey, originalKey: key, value: newValue))
+                }
             } else {
-                storage[lowercasedKey] = nil
+                // Remove header
+                storage.removeAll(where: { $0.key == lowercasedKey })
             }
         }
     }
 
     public var keys: [String] {
-        storage.values.map { $0.originalKey }
+        storage.map { $0.originalKey }
     }
 
     public var values: [String] {
-        storage.values.map { $0.value }
+        storage.map { $0.value }
     }
 
     public var count: Int {
@@ -244,7 +254,8 @@ public struct MIMEHeaders: Sendable {
     }
 
     public func contains(_ key: String) -> Bool {
-        storage[key.lowercased()] != nil
+        let lowercasedKey = key.lowercased()
+        return storage.contains(where: { $0.key == lowercasedKey })
     }
 }
 
@@ -563,7 +574,7 @@ extension MIMEHeaders: ExpressibleByDictionaryLiteral {
 }
 
 extension MIMEHeaders: Collection {
-    public typealias Index = Dictionary<String, (originalKey: String, value: String)>.Index
+    public typealias Index = Array<(key: String, originalKey: String, value: String)>.Index
     public typealias Element = (key: String, value: String)
 
     public var startIndex: Index { storage.startIndex }
@@ -571,7 +582,7 @@ extension MIMEHeaders: Collection {
 
     public subscript(position: Index) -> Element {
         let item = storage[position]
-        return (key: item.value.originalKey, value: item.value.value)
+        return (key: item.originalKey, value: item.value)
     }
 
     public func index(after i: Index) -> Index {
@@ -581,6 +592,6 @@ extension MIMEHeaders: Collection {
 
 extension MIMEHeaders: CustomStringConvertible {
     public var description: String {
-        storage.map { "\($0.value.originalKey): \($0.value.value)" }.joined(separator: "\n")
+        storage.map { "\($0.originalKey): \($0.value)" }.joined(separator: "\n")
     }
 }

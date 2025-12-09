@@ -36,6 +36,53 @@ import Testing
     #expect(htmlPart.body == "<h1>Hello, World!</h1>")
 }
 
+@Test func testHeaderOrderPreserved() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        To: recipient@example.com
+        Date: Mon, 01 Jan 2024 12:00:00 -0800
+        Subject: Test Message
+        MIME-Version: 1.0
+        Content-Type: text/plain
+
+        Body content
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    let keys = message.headers.keys
+    #expect(keys.count == 6)
+    #expect(keys[0] == "From")
+    #expect(keys[1] == "To")
+    #expect(keys[2] == "Date")
+    #expect(keys[3] == "Subject")
+    #expect(keys[4] == "MIME-Version")
+    #expect(keys[5] == "Content-Type")
+}
+
+@Test func testEncodingMaintainsHeaderOrder() async throws {
+    var headers = MIMEHeaders()
+    headers["From"] = "sender@example.com"
+    headers["To"] = "recipient@example.com"
+    headers["Date"] = "Mon, 01 Jan 2024 12:00:00 -0800"
+    headers["Subject"] = "Test Message"
+    headers["MIME-Version"] = "1.0"
+    headers["Content-Type"] = "text/plain"
+
+    let message = MIMEMessage(headers: headers, parts: [])
+    let encoded = message.encode()
+    let reparsed = try MIMEParser.parse(encoded)
+
+    let keys = reparsed.headers.keys
+    #expect(keys.count == 6)
+    #expect(keys[0] == "From")
+    #expect(keys[1] == "To")
+    #expect(keys[2] == "Date")
+    #expect(keys[3] == "Subject")
+    #expect(keys[4] == "MIME-Version")
+    #expect(keys[5] == "Content-Type")
+}
+
 @Test func testBookmarkExample() async throws {
     let bookmarkContent = """
         From: Nathan Borror <zV6nZFTyrypSgXo1mxC02yg6PKeXv8gWpKWa1/AzAPw=>
