@@ -10,6 +10,7 @@ A Swift package for parsing MIME formatted multipart data. This library provides
 - ✅ Full support for duplicate headers (e.g., multiple `Received` headers)
 - ✅ Support for quoted and unquoted boundaries
 - ✅ Automatic charset detection
+- ✅ Generalized header attribute parsing (e.g., `charset`, `boundary`, `filename`)
 - ✅ Type-safe API with `Sendable` support for Swift 6
 - ✅ Convenient helper methods for common operations
 - ✅ No external dependencies
@@ -245,6 +246,111 @@ let part = message.parts[0]
 print(part.contentType)  // "text/plain"
 print(part.charset)      // "utf-8"
 print(part.headers["Custom-Header"])
+```
+
+#### Working with Header Attributes
+
+Many MIME headers contain a primary value followed by semicolon-separated attributes (e.g., `Content-Type: text/plain; charset=utf-8; format=flowed`). The library provides convenient access to these attributes:
+
+```swift
+let message = try MIMEParser.parse(mimeString)
+
+// Access Content-Type attributes on the message
+let attrs = message.contentTypeAttributes
+print(attrs.value)         // "multipart/mixed"
+print(attrs["boundary"])   // "simple"
+print(attrs["charset"])    // "utf-8" (if present)
+print(attrs.all)           // Dictionary of all attributes
+
+// Access Content-Type attributes on a part
+let part = message.parts[0]
+let partAttrs = part.contentTypeAttributes
+print(partAttrs.value)     // "text/plain"
+print(partAttrs["charset"]) // "utf-8"
+print(partAttrs["format"])  // "flowed"
+
+// Parse attributes from any header
+let disposition = part.headerAttributes("Content-Disposition")
+print(disposition.value)       // "attachment"
+print(disposition["filename"]) // "document.pdf"
+print(disposition["size"])     // "1024"
+```
+
+You can also parse attributes directly:
+
+```swift
+let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8; format=flowed")
+print(attrs.value)        // "text/plain"
+print(attrs["charset"])   // "utf-8" (case-insensitive)
+print(attrs["CHARSET"])   // "utf-8" (also works)
+print(attrs["format"])    // "flowed"
+```
+
+Common use cases:
+
+```swift
+// Extract charset for text content
+if let charset = part.charset {
+    print("Charset: \(charset)")
+}
+
+// Check Content-Disposition for attachments
+let disposition = part.headerAttributes("Content-Disposition")
+if disposition.value == "attachment", let filename = disposition["filename"] {
+    print("Attachment: \(filename)")
+}
+
+// Access boundary for multipart messages
+if let boundary = message.contentTypeAttributes["boundary"] {
+    print("Boundary: \(boundary)")
+}
+```
+
+**Complete Example:**
+
+```swift
+let mimeContent = """
+    From: sender@example.com
+    Content-Type: multipart/mixed; boundary="docs"; charset="utf-8"
+    
+    --docs
+    Content-Type: text/plain; charset=utf-8; format=flowed
+    
+    Hello! Please find the document attached.
+    --docs
+    Content-Type: application/pdf; name="report.pdf"
+    Content-Disposition: attachment; filename="report.pdf"; size=2048
+    
+    [PDF content here]
+    --docs--
+    """
+
+let message = try MIMEParser.parse(mimeContent)
+
+// Parse message-level Content-Type attributes
+let msgAttrs = message.contentTypeAttributes
+print(msgAttrs.value)         // "multipart/mixed"
+print(msgAttrs["boundary"])   // "docs"
+print(msgAttrs["charset"])    // "utf-8"
+
+// Parse first part (text/plain)
+let textPart = message.parts[0]
+let textAttrs = textPart.contentTypeAttributes
+print(textAttrs.value)        // "text/plain"
+print(textAttrs["charset"])   // "utf-8"
+print(textAttrs["format"])    // "flowed"
+
+// Parse second part (attachment)
+let pdfPart = message.parts[1]
+let pdfAttrs = pdfPart.contentTypeAttributes
+print(pdfAttrs.value)         // "application/pdf"
+print(pdfAttrs["name"])       // "report.pdf"
+
+// Parse Content-Disposition for attachment metadata
+let disposition = pdfPart.headerAttributes("Content-Disposition")
+print(disposition.value)       // "attachment"
+print(disposition["filename"]) // "report.pdf"
+print(disposition["size"])     // "2048"
 ```
 
 #### Working with Duplicate Headers
@@ -658,6 +764,36 @@ The main entry point for parsing MIME messages. Supports both multipart messages
   - Converts the string to UTF-8 data and parses it
   - Equivalent to calling `parse(_:Data)` with the string's data
 
+### `MIMEHeaderAttributes`
+
+Represents parsed attributes from a header value. Many MIME headers contain a primary value followed by semicolon-separated attributes.
+
+#### Properties
+
+- `value: String` - The primary value before any attributes
+- `all: [String: String]` - Dictionary of all parsed attributes (keys are lowercased)
+
+#### Methods
+
+- `static func parse(_ headerValue: String?) -> MIMEHeaderAttributes`
+  - Parses a header value into its primary value and attributes
+  - Handles quoted and unquoted attribute values
+  - Normalizes attribute names to lowercase for case-insensitive access
+- `subscript(key: String) -> String?`
+  - Access an attribute by name (case-insensitive)
+  - Returns nil if the attribute doesn't exist
+
+#### Example
+
+```swift
+let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8; format=flowed")
+print(attrs.value)        // "text/plain"
+print(attrs["charset"])   // "utf-8"
+print(attrs["CHARSET"])   // "utf-8" (case-insensitive)
+print(attrs["format"])    // "flowed"
+print(attrs.all)          // ["charset": "utf-8", "format": "flowed"]
+```
+
 ### `MIMEMessage`
 
 Represents a complete MIME message with headers and parts.
@@ -672,7 +808,8 @@ Represents a complete MIME message with headers and parts.
 - `subject: String?` - The "Subject" header value
 - `date: String?` - The "Date" header value
 - `mimeVersion: String?` - The "MIME-Version" header value (optional, may be nil)
-- `contentType: String?` - The "Content-Type" header value
+- `contentType: String?` - The primary content type value (e.g., "multipart/mixed")
+- `contentTypeAttributes: MIMEHeaderAttributes` - Parsed Content-Type header with all attributes
 
 #### Methods
 
@@ -682,6 +819,8 @@ Represents a complete MIME message with headers and parts.
   - Returns the first part with a specific content type
 - `func hasPart(withContentType contentType: String) -> Bool`
   - Returns true if any part has the specified content type
+- `func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes`
+  - Parses attributes from any header value
 - `func encode() -> String`
   - Encodes the message back to MIME format string
 
@@ -693,12 +832,15 @@ Represents a single part of a multipart MIME message.
 
 - `headers: MIMEHeaders` - The headers for this part
 - `body: String` - The body content
-- `contentType: String?` - The content type (e.g., "text/plain")
-- `charset: String?` - The charset (e.g., "utf-8")
+- `contentType: String?` - The primary content type value (e.g., "text/plain")
+- `contentTypeAttributes: MIMEHeaderAttributes` - Parsed Content-Type header with all attributes
+- `charset: String?` - The charset parameter from Content-Type (e.g., "utf-8")
 - `decodedBody: String` - The decoded body content
 
 #### Methods
 
+- `func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes`
+  - Parses attributes from any header value
 - `func encode() -> String`
   - Encodes the part back to MIME format string
 

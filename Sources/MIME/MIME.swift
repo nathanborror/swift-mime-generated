@@ -36,9 +36,45 @@ public struct MIMEMessage: Sendable {
         headers["MIME-Version"]
     }
 
-    /// The "Content-Type" header value
+    /// The primary content type value (e.g., "multipart/mixed", "text/plain")
     public var contentType: String? {
-        headers["Content-Type"]
+        guard let value = headers["Content-Type"] else { return nil }
+        let attributes = MIMEHeaderAttributes.parse(value)
+        return attributes.value.isEmpty ? nil : attributes.value
+    }
+
+    /// All attributes from the Content-Type header.
+    ///
+    /// Returns a parsed representation of the Content-Type header including
+    /// the primary media type and all parameters (like boundary, charset, etc.).
+    ///
+    /// ```swift
+    /// let message = try MIMEParser.parse(mimeString)
+    /// let attrs = message.contentTypeAttributes
+    /// print(attrs.value)         // "multipart/mixed"
+    /// print(attrs["boundary"])   // "simple"
+    /// print(attrs["charset"])    // "utf-8"
+    /// ```
+    public var contentTypeAttributes: MIMEHeaderAttributes {
+        MIMEHeaderAttributes.parse(headers["Content-Type"])
+    }
+
+    /// Parse attributes from any header value.
+    ///
+    /// Use this to extract attributes from any header that follows the
+    /// `value; param=value` format.
+    ///
+    /// ```swift
+    /// let message = try MIMEParser.parse(mimeString)
+    /// let disposition = message.headerAttributes("Content-Disposition")
+    /// print(disposition.value)         // "inline"
+    /// print(disposition["filename"])   // "image.png"
+    /// ```
+    ///
+    /// - Parameter headerName: The name of the header to parse
+    /// - Returns: Parsed attributes with primary value and parameters
+    public func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes {
+        MIMEHeaderAttributes.parse(headers[headerName])
     }
 
     /// The body content for non-multipart messages.
@@ -102,11 +138,103 @@ public struct MIMEMessage: Sendable {
     }
 }
 
+// MARK: - MIME Header Attributes
+
+/// Represents parsed attributes from a header value.
+///
+/// Many MIME headers contain a primary value followed by semicolon-separated
+/// attributes (e.g., `Content-Type: text/plain; charset=utf-8; format=flowed`).
+///
+/// ```swift
+/// let contentType = headers["Content-Type"]
+/// let attributes = MIMEHeaderAttributes.parse(contentType)
+/// print(attributes.value)              // "text/plain"
+/// print(attributes["charset"])         // "utf-8"
+/// print(attributes["format"])          // "flowed"
+/// print(attributes.all)                // ["charset": "utf-8", "format": "flowed"]
+/// ```
+public struct MIMEHeaderAttributes: Sendable, Equatable {
+    /// The primary value before any attributes
+    public let value: String
+
+    /// Dictionary of all parsed attributes
+    public let all: [String: String]
+
+    /// Initialize with a primary value and attributes
+    public init(value: String, attributes: [String: String] = [:]) {
+        self.value = value
+        self.all = attributes
+    }
+
+    /// Parse a header value into its primary value and attributes.
+    ///
+    /// Handles quoted and unquoted attribute values, and normalizes
+    /// attribute names to lowercase for case-insensitive access.
+    ///
+    /// ```swift
+    /// let attrs = MIMEHeaderAttributes.parse("text/plain; charset=\"utf-8\"; format=flowed")
+    /// print(attrs.value)        // "text/plain"
+    /// print(attrs["charset"])   // "utf-8"
+    /// print(attrs["format"])    // "flowed"
+    /// ```
+    ///
+    /// - Parameter headerValue: The complete header value to parse
+    /// - Returns: Parsed attributes with the primary value and attribute dictionary
+    public static func parse(_ headerValue: String?) -> MIMEHeaderAttributes {
+        guard let headerValue = headerValue else {
+            return MIMEHeaderAttributes(value: "", attributes: [:])
+        }
+
+        let components = headerValue.components(separatedBy: ";")
+        guard !components.isEmpty else {
+            return MIMEHeaderAttributes(value: "", attributes: [:])
+        }
+
+        // First component is the primary value
+        let primaryValue = components[0].trimmingCharacters(in: .whitespaces)
+
+        // Remaining components are attributes
+        var attributes: [String: String] = [:]
+        for component in components.dropFirst() {
+            let trimmed = component.trimmingCharacters(in: .whitespaces)
+
+            // Split on first '=' only
+            guard let equalIndex = trimmed.firstIndex(of: "=") else { continue }
+
+            let key = String(trimmed[..<equalIndex]).trimmingCharacters(in: .whitespaces)
+                .lowercased()
+            var value = String(trimmed[trimmed.index(after: equalIndex)...]).trimmingCharacters(
+                in: .whitespaces)
+
+            // Remove quotes if present
+            if value.hasPrefix("\"") && value.hasSuffix("\"") && value.count >= 2 {
+                value = String(value.dropFirst().dropLast())
+            }
+
+            attributes[key] = value
+        }
+
+        return MIMEHeaderAttributes(value: primaryValue, attributes: attributes)
+    }
+
+    /// Access an attribute by name (case-insensitive).
+    ///
+    /// ```swift
+    /// let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8")
+    /// print(attrs["charset"])   // "utf-8"
+    /// print(attrs["CHARSET"])   // "utf-8"
+    /// ```
+    public subscript(key: String) -> String? {
+        all[key.lowercased()]
+    }
+}
+
 // MARK: - MIME Part
 
-/// Represents a single part of a multipart MIME message.
+/// Represents a single part within a MIME message.
 ///
-/// Each part contains its own headers and body content:
+/// Each part has its own headers and body content. Use the convenience
+/// properties to access common header values:
 ///
 /// ```swift
 /// let part = message.parts[0]
@@ -136,26 +264,48 @@ public struct MIMEPart: Sendable, Identifiable {
 
     /// The content type of this part (e.g., "text/plain", "text/html")
     public var contentType: String? {
-        headers["Content-Type"]?.components(separatedBy: ";").first?.trimmingCharacters(
-            in: .whitespaces)
+        guard let value = headers["Content-Type"] else { return nil }
+        let attributes = MIMEHeaderAttributes.parse(value)
+        return attributes.value.isEmpty ? nil : attributes.value
     }
 
     /// The charset specified in the Content-Type header (e.g., "utf-8")
     public var charset: String? {
-        guard let contentType = headers["Content-Type"] else { return nil }
-        let components = contentType.components(separatedBy: ";")
-        for component in components {
-            let trimmed = component.trimmingCharacters(in: .whitespaces)
-            if trimmed.lowercased().hasPrefix("charset=") {
-                var charsetValue = String(trimmed.dropFirst("charset=".count))
-                // Remove quotes if present
-                if charsetValue.hasPrefix("\"") && charsetValue.hasSuffix("\"") {
-                    charsetValue = String(charsetValue.dropFirst().dropLast())
-                }
-                return charsetValue
-            }
-        }
-        return nil
+        contentTypeAttributes["charset"]
+    }
+
+    /// All attributes from the Content-Type header.
+    ///
+    /// Returns a parsed representation of the Content-Type header including
+    /// the primary media type and all parameters.
+    ///
+    /// ```swift
+    /// let part = message.parts[0]
+    /// let attrs = part.contentTypeAttributes
+    /// print(attrs.value)         // "text/plain"
+    /// print(attrs["charset"])    // "utf-8"
+    /// print(attrs["format"])     // "flowed"
+    /// ```
+    public var contentTypeAttributes: MIMEHeaderAttributes {
+        MIMEHeaderAttributes.parse(headers["Content-Type"])
+    }
+
+    /// Parse attributes from any header value.
+    ///
+    /// Use this to extract attributes from any header that follows the
+    /// `value; param=value` format.
+    ///
+    /// ```swift
+    /// let part = message.parts[0]
+    /// let disposition = part.headerAttributes("Content-Disposition")
+    /// print(disposition.value)         // "attachment"
+    /// print(disposition["filename"])   // "document.pdf"
+    /// ```
+    ///
+    /// - Parameter headerName: The name of the header to parse
+    /// - Returns: Parsed attributes with primary value and parameters
+    public func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes {
+        MIMEHeaderAttributes.parse(headers[headerName])
     }
 
     /// Returns the body decoded according to the charset specified in headers.
@@ -442,23 +592,8 @@ public enum MIMEParser {
 
     /// Extract boundary from Content-Type header
     static func extractBoundary(from contentType: String?) -> String? {
-        guard let contentType = contentType else { return nil }
-
-        // Look for boundary="value" or boundary=value
-        let components = contentType.components(separatedBy: ";")
-        for component in components {
-            let trimmed = component.trimmingCharacters(in: .whitespaces)
-            if trimmed.lowercased().hasPrefix("boundary=") {
-                var boundaryValue = String(trimmed.dropFirst("boundary=".count))
-                // Remove quotes if present
-                if boundaryValue.hasPrefix("\"") && boundaryValue.hasSuffix("\"") {
-                    boundaryValue = String(boundaryValue.dropFirst().dropLast())
-                }
-                return boundaryValue
-            }
-        }
-
-        return nil
+        let attributes = MIMEHeaderAttributes.parse(contentType)
+        return attributes["boundary"]
     }
 
     /// Parse headers from lines

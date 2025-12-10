@@ -1033,3 +1033,234 @@ import Testing
     #expect(headers.values(for: "X-Custom").isEmpty)
     #expect(!headers.contains("X-Custom"))
 }
+
+// MARK: - MIMEHeaderAttributes Tests
+
+@Test func testHeaderAttributesParsing() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8")
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs["charset"] == "utf-8")
+    #expect(attrs.all.count == 1)
+}
+
+@Test func testHeaderAttributesWithQuotedValues() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain; charset=\"utf-8\"")
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs["charset"] == "utf-8")
+}
+
+@Test func testHeaderAttributesMultipleParameters() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8; format=flowed; delsp=yes")
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs["charset"] == "utf-8")
+    #expect(attrs["format"] == "flowed")
+    #expect(attrs["delsp"] == "yes")
+    #expect(attrs.all.count == 3)
+}
+
+@Test func testHeaderAttributesCaseInsensitive() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8")
+
+    #expect(attrs["charset"] == "utf-8")
+    #expect(attrs["CHARSET"] == "utf-8")
+    #expect(attrs["Charset"] == "utf-8")
+}
+
+@Test func testHeaderAttributesWithBoundary() async throws {
+    let attrs = MIMEHeaderAttributes.parse("multipart/mixed; boundary=\"simple-boundary\"")
+
+    #expect(attrs.value == "multipart/mixed")
+    #expect(attrs["boundary"] == "simple-boundary")
+}
+
+@Test func testHeaderAttributesEmptyValue() async throws {
+    let attrs = MIMEHeaderAttributes.parse(nil)
+
+    #expect(attrs.value == "")
+    #expect(attrs.all.isEmpty)
+}
+
+@Test func testHeaderAttributesNoParameters() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain")
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs.all.isEmpty)
+}
+
+@Test func testHeaderAttributesWithWhitespace() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain;  charset = \"utf-8\" ;  format = flowed ")
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs["charset"] == "utf-8")
+    #expect(attrs["format"] == "flowed")
+}
+
+@Test func testHeaderAttributesComplexContentType() async throws {
+    let attrs = MIMEHeaderAttributes.parse(
+        "multipart/alternative; boundary=\"boundary123\"; charset=\"utf-8\""
+    )
+
+    #expect(attrs.value == "multipart/alternative")
+    #expect(attrs["boundary"] == "boundary123")
+    #expect(attrs["charset"] == "utf-8")
+    #expect(attrs.all.count == 2)
+}
+
+@Test func testContentTypeAttributesOnPart() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain; charset=utf-8; format=flowed
+
+        Plain text
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+    let part = message.parts[0]
+    let attrs = part.contentTypeAttributes
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs["charset"] == "utf-8")
+    #expect(attrs["format"] == "flowed")
+}
+
+@Test func testContentTypeAttributesOnMessage() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"; charset="utf-8"
+
+        --test
+        Content-Type: text/plain
+
+        Content
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+    let attrs = message.contentTypeAttributes
+
+    #expect(attrs.value == "multipart/mixed")
+    #expect(attrs["boundary"] == "test")
+    #expect(attrs["charset"] == "utf-8")
+}
+
+@Test func testHeaderAttributesMethod() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+        Content-Disposition: attachment; filename="document.pdf"; size=1024
+
+        Content
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+    let part = message.parts[0]
+    let disposition = part.headerAttributes("Content-Disposition")
+
+    #expect(disposition.value == "attachment")
+    #expect(disposition["filename"] == "document.pdf")
+    #expect(disposition["size"] == "1024")
+}
+
+@Test func testHeaderAttributesMethodOnMessage() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"
+        Content-Disposition: inline; filename="message.txt"
+
+        --test
+        Content-Type: text/plain
+
+        Content
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+    let disposition = message.headerAttributes("Content-Disposition")
+
+    #expect(disposition.value == "inline")
+    #expect(disposition["filename"] == "message.txt")
+}
+
+@Test func testHeaderAttributesWithSpecialCharacters() async throws {
+    let attrs = MIMEHeaderAttributes.parse(
+        "application/octet-stream; filename=\"file-name_2024.txt\""
+    )
+
+    #expect(attrs.value == "application/octet-stream")
+    #expect(attrs["filename"] == "file-name_2024.txt")
+}
+
+@Test func testContentTypePropertyUsesAttributes() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain; charset=utf-8
+
+        Content
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    // Message contentType should be just the media type
+    #expect(message.contentType == "multipart/mixed")
+
+    // Part contentType should be just the media type
+    #expect(message.parts[0].contentType == "text/plain")
+
+    // But charset should still be accessible
+    #expect(message.parts[0].charset == "utf-8")
+}
+
+@Test func testHeaderAttributesEquality() async throws {
+    let attrs1 = MIMEHeaderAttributes(value: "text/plain", attributes: ["charset": "utf-8"])
+    let attrs2 = MIMEHeaderAttributes(value: "text/plain", attributes: ["charset": "utf-8"])
+    let attrs3 = MIMEHeaderAttributes(value: "text/html", attributes: ["charset": "utf-8"])
+
+    #expect(attrs1 == attrs2)
+    #expect(attrs1 != attrs3)
+}
+
+@Test func testHeaderAttributesWithEmptyParameterValue() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain; charset=")
+
+    #expect(attrs.value == "text/plain")
+    #expect(attrs["charset"] == "")
+}
+
+@Test func testHeaderAttributesNonExistentParameter() async throws {
+    let attrs = MIMEHeaderAttributes.parse("text/plain; charset=utf-8")
+
+    #expect(attrs["nonexistent"] == nil)
+}
+
+@Test func testBoundaryExtractionUsesAttributes() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"; charset="utf-8"
+
+        --test-boundary
+        Content-Type: text/plain
+
+        Part 1
+        --test-boundary
+        Content-Type: text/html
+
+        Part 2
+        --test-boundary--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    // Should successfully parse with the boundary
+    #expect(message.parts.count == 2)
+    #expect(message.parts[0].contentType == "text/plain")
+    #expect(message.parts[1].contentType == "text/html")
+}

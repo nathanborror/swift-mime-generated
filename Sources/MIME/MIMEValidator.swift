@@ -314,9 +314,7 @@ public struct MIMEValidator: Sendable {
         warnings: inout [String]
     ) {
         // Check for boundary
-        guard let contentTypeHeader = message.contentType,
-            contentTypeHeader.lowercased().contains("boundary=")
-        else {
+        guard message.contentTypeAttributes["boundary"] != nil else {
             if strictMultipart {
                 errors.append(.missingBoundary)
             } else {
