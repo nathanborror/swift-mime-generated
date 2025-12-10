@@ -196,15 +196,25 @@ public struct MIMEPart: Sendable, Identifiable {
 
 // MARK: - MIME Headers
 
-/// Represents MIME headers as a case-insensitive dictionary.
+/// Represents MIME headers as a case-insensitive collection.
 ///
-/// Header names are case-insensitive following RFC 2822:
+/// Header names are case-insensitive following RFC 2822. The subscript accessor
+/// returns the first value when multiple headers with the same name exist, and
+/// setting a value replaces all existing headers with that name.
+///
+/// For headers that can appear multiple times (like `Received`), use `values(for:)`
+/// to retrieve all values and `add(_:value:)` to append without replacing.
 ///
 /// ```swift
 /// var headers = MIMEHeaders()
 /// headers["Content-Type"] = "text/plain"
 /// print(headers["content-type"])  // "text/plain"
 /// print(headers["CONTENT-TYPE"])  // "text/plain"
+///
+/// // Working with multiple values
+/// headers.add("Received", value: "from server1.example.com")
+/// headers.add("Received", value: "from server2.example.com")
+/// let allReceived = headers.values(for: "Received")  // Both values
 /// ```
 public struct MIMEHeaders: Sendable, Equatable {
     private var storage: [(key: String, originalKey: String, value: String)] = []
@@ -217,6 +227,11 @@ public struct MIMEHeaders: Sendable, Equatable {
         }
     }
 
+    /// Access header values by name (case-insensitive).
+    ///
+    /// Getting a value returns the first occurrence. Setting a value replaces
+    /// all existing headers with that name. To add multiple headers with the
+    /// same name, use `add(_:value:)` instead.
     public subscript(key: String) -> String? {
         get {
             let lowercasedKey = key.lowercased()
@@ -225,17 +240,12 @@ public struct MIMEHeaders: Sendable, Equatable {
         set {
             let lowercasedKey = key.lowercased()
             if let newValue = newValue {
-                if let index = storage.firstIndex(where: { $0.key == lowercasedKey }) {
-                    // Update existing header, preserving original key casing
-                    storage[index] = (
-                        key: lowercasedKey, originalKey: storage[index].originalKey, value: newValue
-                    )
-                } else {
-                    // Add new header
-                    storage.append((key: lowercasedKey, originalKey: key, value: newValue))
-                }
+                // Remove all existing headers with this name
+                storage.removeAll(where: { $0.key == lowercasedKey })
+                // Add the new header
+                storage.append((key: lowercasedKey, originalKey: key, value: newValue))
             } else {
-                // Remove header
+                // Remove all headers with this name
                 storage.removeAll(where: { $0.key == lowercasedKey })
             }
         }
@@ -256,6 +266,52 @@ public struct MIMEHeaders: Sendable, Equatable {
     public func contains(_ key: String) -> Bool {
         let lowercasedKey = key.lowercased()
         return storage.contains(where: { $0.key == lowercasedKey })
+    }
+
+    /// Returns all values for the given header key.
+    ///
+    /// This method is useful when a header can appear multiple times (e.g., `Received` headers).
+    /// Header names are case-insensitive.
+    ///
+    /// ```swift
+    /// let received = headers.values(for: "Received")
+    /// // Returns all Received header values in order
+    /// ```
+    ///
+    /// - Parameter key: The header name to look up (case-insensitive)
+    /// - Returns: An array of all values for the given key, in the order they appear
+    public func values(for key: String) -> [String] {
+        let lowercasedKey = key.lowercased()
+        return storage.filter { $0.key == lowercasedKey }.map { $0.value }
+    }
+
+    /// Adds a header without replacing existing headers with the same name.
+    ///
+    /// This method allows multiple headers with the same name to coexist,
+    /// which is required by RFC 2822 for headers like `Received`.
+    ///
+    /// ```swift
+    /// headers.add("Received", value: "from server1.example.com")
+    /// headers.add("Received", value: "from server2.example.com")
+    /// // Both headers are preserved
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - key: The header name
+    ///   - value: The header value to add
+    public mutating func add(_ key: String, value: String) {
+        let lowercasedKey = key.lowercased()
+        storage.append((key: lowercasedKey, originalKey: key, value: value))
+    }
+
+    /// Removes all headers with the given name.
+    ///
+    /// Header names are case-insensitive.
+    ///
+    /// - Parameter key: The header name to remove
+    public mutating func removeAll(_ key: String) {
+        let lowercasedKey = key.lowercased()
+        storage.removeAll(where: { $0.key == lowercasedKey })
     }
 
     public static func == (lhs: MIMEHeaders, rhs: MIMEHeaders) -> Bool {
@@ -419,7 +475,7 @@ public enum MIMEParser {
             } else {
                 // Save previous header if exists
                 if let key = currentKey {
-                    headers[key] = currentValue.trimmingCharacters(in: .whitespaces)
+                    headers.add(key, value: currentValue.trimmingCharacters(in: .whitespaces))
                 }
 
                 // Parse new header
@@ -435,7 +491,7 @@ public enum MIMEParser {
 
         // Save last header
         if let key = currentKey {
-            headers[key] = currentValue.trimmingCharacters(in: .whitespaces)
+            headers.add(key, value: currentValue.trimmingCharacters(in: .whitespaces))
         }
 
         return headers

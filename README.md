@@ -7,6 +7,7 @@ A Swift package for parsing MIME formatted multipart data. This library provides
 - ✅ Parse MIME messages (both multipart and non-multipart) according to RFC 2045 and RFC 2046
 - ✅ Optional MIME-Version header (not required for parsing)
 - ✅ Case-insensitive header access
+- ✅ Full support for duplicate headers (e.g., multiple `Received` headers)
 - ✅ Support for quoted and unquoted boundaries
 - ✅ Automatic charset detection
 - ✅ Type-safe API with `Sendable` support for Swift 6
@@ -244,6 +245,51 @@ let part = message.parts[0]
 print(part.contentType)  // "text/plain"
 print(part.charset)      // "utf-8"
 print(part.headers["Custom-Header"])
+```
+
+#### Working with Duplicate Headers
+
+Some headers can appear multiple times in a MIME message (e.g., `Received` headers in email). The library fully supports this:
+
+```swift
+// Subscript returns the first value
+let firstReceived = message.headers["Received"]
+
+// Get all values for a header
+let allReceived = message.headers.values(for: "Received")
+for received in allReceived {
+    print(received)
+}
+
+// Add a header without replacing existing ones
+var headers = MIMEHeaders()
+headers.add("Received", value: "from server1.example.com")
+headers.add("Received", value: "from server2.example.com")
+headers.add("Received", value: "from server3.example.com")
+
+// Setting via subscript replaces all occurrences
+headers["X-Custom"] = "new-value"  // Replaces all X-Custom headers
+
+// Remove all headers with a name
+headers.removeAll("Received")
+```
+
+Parsing preserves all duplicate headers:
+
+```swift
+let mimeContent = """
+    From: sender@example.com
+    Received: from server1.example.com
+    Received: from server2.example.com
+    Received: from server3.example.com
+    Content-Type: text/plain
+    
+    Body
+    """
+
+let message = try MIMEParser.parse(mimeContent)
+let received = message.headers.values(for: "Received")
+print(received.count)  // 3
 ```
 
 ### Complex Example
@@ -658,11 +704,14 @@ Represents a single part of a multipart MIME message.
 
 ### `MIMEHeaders`
 
-A case-insensitive dictionary for MIME headers.
+A case-insensitive collection for MIME headers with support for duplicate header names.
 
 #### Methods
 
-- `subscript(key: String) -> String?` - Access headers by name (case-insensitive)
+- `subscript(key: String) -> String?` - Access headers by name (case-insensitive). Returns the first value when multiple headers with the same name exist. Setting a value replaces all existing headers with that name.
+- `func values(for key: String) -> [String]` - Returns all values for a given header name, useful for headers that can appear multiple times (e.g., `Received`)
+- `func add(_ key: String, value: String)` - Adds a header without replacing existing headers with the same name
+- `func removeAll(_ key: String)` - Removes all headers with the given name
 - `func contains(_ key: String) -> Bool` - Check if a header exists
 - Conforms to `Collection`, so you can iterate over headers
 

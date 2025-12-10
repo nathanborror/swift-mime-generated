@@ -830,3 +830,206 @@ import Testing
         try MIMEParser.parse(mimeContent)
     }
 }
+
+// MARK: - Duplicate Headers Tests
+
+@Test func testDuplicateHeadersParsing() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        To: recipient@example.com
+        Received: from server1.example.com by server2.example.com
+        Received: from server2.example.com by server3.example.com
+        Received: from server3.example.com by server4.example.com
+        Subject: Test with duplicate headers
+        Content-Type: text/plain
+
+        Body content
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    // Subscript should return first value
+    #expect(message.headers["Received"] == "from server1.example.com by server2.example.com")
+
+    // values(for:) should return all values
+    let receivedHeaders = message.headers.values(for: "Received")
+    #expect(receivedHeaders.count == 3)
+    #expect(receivedHeaders[0] == "from server1.example.com by server2.example.com")
+    #expect(receivedHeaders[1] == "from server2.example.com by server3.example.com")
+    #expect(receivedHeaders[2] == "from server3.example.com by server4.example.com")
+
+    // Case-insensitive lookup
+    let receivedLowercase = message.headers.values(for: "received")
+    #expect(receivedLowercase.count == 3)
+}
+
+@Test func testAddingDuplicateHeaders() async throws {
+    var headers = MIMEHeaders()
+    headers["From"] = "sender@example.com"
+
+    // Add multiple Received headers
+    headers.add("Received", value: "from server1.example.com")
+    headers.add("Received", value: "from server2.example.com")
+    headers.add("Received", value: "from server3.example.com")
+
+    #expect(headers.count == 4)  // From + 3 Received
+
+    // Subscript returns first
+    #expect(headers["Received"] == "from server1.example.com")
+
+    // values(for:) returns all
+    let allReceived = headers.values(for: "Received")
+    #expect(allReceived.count == 3)
+    #expect(allReceived[0] == "from server1.example.com")
+    #expect(allReceived[1] == "from server2.example.com")
+    #expect(allReceived[2] == "from server3.example.com")
+}
+
+@Test func testSubscriptReplacesAllDuplicates() async throws {
+    var headers = MIMEHeaders()
+
+    // Add multiple headers with same name
+    headers.add("X-Custom", value: "value1")
+    headers.add("X-Custom", value: "value2")
+    headers.add("X-Custom", value: "value3")
+
+    #expect(headers.values(for: "X-Custom").count == 3)
+
+    // Setting via subscript should replace all
+    headers["X-Custom"] = "single-value"
+
+    let values = headers.values(for: "X-Custom")
+    #expect(values.count == 1)
+    #expect(values[0] == "single-value")
+}
+
+@Test func testRemoveAllDuplicates() async throws {
+    var headers = MIMEHeaders()
+    headers.add("X-Custom", value: "value1")
+    headers.add("X-Custom", value: "value2")
+    headers.add("From", value: "test@example.com")
+
+    #expect(headers.count == 3)
+
+    // Remove all X-Custom headers
+    headers.removeAll("X-Custom")
+
+    #expect(headers.count == 1)
+    #expect(headers["From"] == "test@example.com")
+    #expect(headers["X-Custom"] == nil)
+    #expect(headers.values(for: "X-Custom").isEmpty)
+}
+
+@Test func testEncodingDuplicateHeaders() async throws {
+    var headers = MIMEHeaders()
+    headers["From"] = "sender@example.com"
+    headers.add("Received", value: "from server1.example.com")
+    headers.add("Received", value: "from server2.example.com")
+
+    let part = MIMEPart(headers: headers, body: "Test content")
+    let encoded = part.encode()
+
+    // Should contain both Received headers
+    #expect(encoded.contains("Received: from server1.example.com"))
+    #expect(encoded.contains("Received: from server2.example.com"))
+    #expect(encoded.contains("From: sender@example.com"))
+}
+
+@Test func testRoundTripWithDuplicateHeaders() async throws {
+    let originalContent = """
+        From: sender@example.com
+        Received: from server1.example.com
+        Received: from server2.example.com
+        Received: from server3.example.com
+        Subject: Test
+        Content-Type: text/plain
+
+        Body
+        """
+
+    let message = try MIMEParser.parse(originalContent)
+
+    // Verify parsing
+    #expect(message.headers.values(for: "Received").count == 3)
+
+    // Encode back
+    let encoded = message.encode()
+
+    // Parse again
+    let reparsed = try MIMEParser.parse(encoded)
+
+    // Verify all Received headers are preserved
+    let receivedHeaders = reparsed.headers.values(for: "Received")
+    #expect(receivedHeaders.count == 3)
+    #expect(receivedHeaders[0] == "from server1.example.com")
+    #expect(receivedHeaders[1] == "from server2.example.com")
+    #expect(receivedHeaders[2] == "from server3.example.com")
+}
+
+@Test func testValuesForNonExistentHeader() async throws {
+    let headers = MIMEHeaders()
+    let values = headers.values(for: "NonExistent")
+    #expect(values.isEmpty)
+}
+
+@Test func testDuplicateHeadersCaseInsensitive() async throws {
+    var headers = MIMEHeaders()
+    headers.add("Received", value: "value1")
+    headers.add("RECEIVED", value: "value2")
+    headers.add("received", value: "value3")
+
+    // All should be stored as the same header
+    let values = headers.values(for: "Received")
+    #expect(values.count == 3)
+
+    // Should work with any case
+    #expect(headers.values(for: "RECEIVED").count == 3)
+    #expect(headers.values(for: "received").count == 3)
+}
+
+@Test func testDuplicateHeadersInMultipartMessage() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        Received: from server1.example.com
+        Received: from server2.example.com
+        Content-Type: multipart/mixed; boundary="test"
+
+        --test
+        Content-Type: text/plain
+        X-Custom: custom1
+        X-Custom: custom2
+
+        Part 1
+        --test
+        Content-Type: text/html
+
+        Part 2
+        --test--
+        """
+
+    let message = try MIMEParser.parse(mimeContent)
+
+    // Check message-level duplicate headers
+    #expect(message.headers.values(for: "Received").count == 2)
+
+    // Check part-level duplicate headers
+    #expect(message.parts[0].headers.values(for: "X-Custom").count == 2)
+    #expect(message.parts[0].headers.values(for: "X-Custom")[0] == "custom1")
+    #expect(message.parts[0].headers.values(for: "X-Custom")[1] == "custom2")
+}
+
+@Test func testSettingNilRemovesAllDuplicates() async throws {
+    var headers = MIMEHeaders()
+    headers.add("X-Custom", value: "value1")
+    headers.add("X-Custom", value: "value2")
+    headers.add("X-Custom", value: "value3")
+
+    #expect(headers.values(for: "X-Custom").count == 3)
+
+    // Setting nil should remove all
+    headers["X-Custom"] = nil
+
+    #expect(headers["X-Custom"] == nil)
+    #expect(headers.values(for: "X-Custom").isEmpty)
+    #expect(!headers.contains("X-Custom"))
+}
