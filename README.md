@@ -96,16 +96,23 @@ print(message.parts[0].body)  // "This is a simple text message..."
 
 ### Parsing from Data
 
-You can parse MIME messages directly from `Data` objects. This is useful when working with network responses or file data:
+The primary parsing method accepts `Data` objects. This is the recommended approach when working with network responses or file data:
 
 ```swift
-// Parse from Data
+// Parse from Data (primary method)
 let data = mimeString.data(using: .utf8)!
 let message = try MIMEParser.parse(data)
 
 // The Data will be decoded as UTF-8
 print(message.from)
 print(message.parts.count)
+```
+
+You can also use the convenience method that accepts a `String` directly:
+
+```swift
+// Convenience method for String input
+let message = try MIMEParser.parse(mimeString)
 ```
 
 If the `Data` cannot be decoded as UTF-8, a `MIMEError.invalidUTF8` error will be thrown.
@@ -594,14 +601,16 @@ The main entry point for parsing MIME messages. Supports both multipart messages
 
 #### Methods
 
-- `static func parse(_ content: String) throws -> MIMEMessage`
-  - Parses a MIME message from a string
+- `static func parse(_ data: Data) throws -> MIMEMessage`
+  - Primary parsing method that accepts MIME message data
+  - Converts the Data to a UTF-8 string and parses it as a MIME message
   - Multipart messages are parsed using the boundary specified in the Content-Type header
   - Non-multipart messages are treated as a single part containing the entire body
-- `static func parse(_ data: Data) throws -> MIMEMessage`
-  - Parses a MIME message from Data
-  - Converts the Data to a UTF-8 string and parses it as a MIME message
   - Throws `MIMEError.invalidUTF8` if the data cannot be decoded as UTF-8
+- `static func parse(_ content: String) throws -> MIMEMessage`
+  - Convenience method that accepts a MIME message string
+  - Converts the string to UTF-8 data and parses it
+  - Equivalent to calling `parse(_:Data)` with the string's data
 
 ### `MIMEMessage`
 
