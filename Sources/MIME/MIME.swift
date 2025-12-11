@@ -8,9 +8,8 @@ import Foundation
 ///
 /// ```swift
 /// let message = try MIMEDecoder().decode(mimeString)
-/// print(message.from)
 /// for part in message.parts {
-///     print(part.contentType)
+///     print(part.headers["Content-Type"])
 /// }
 /// ```
 public struct MIMEMessage: Sendable {
@@ -20,43 +19,6 @@ public struct MIMEMessage: Sendable {
     public init(headers: MIMEHeaders, parts: [MIMEPart]) {
         self.headers = headers
         self.parts = parts
-    }
-
-    /// The "Date" header value parsed as a Date
-    public var date: Date? {
-        guard let dateString = headers["Date"] else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-        return formatter.date(from: dateString)
-    }
-
-    /// The "MIME-Version" header value
-    public var mimeVersion: String? {
-        headers["MIME-Version"]
-    }
-
-    /// The primary content type value (e.g., "multipart/mixed", "text/plain")
-    public var contentType: String? {
-        guard let value = headers["Content-Type"] else { return nil }
-        let attributes = MIMEHeaderAttributes.parse(value)
-        return attributes.value.isEmpty ? nil : attributes.value
-    }
-
-    /// All attributes from the Content-Type header.
-    ///
-    /// Returns a parsed representation of the Content-Type header including
-    /// the primary media type and all parameters (like boundary, charset, etc.).
-    ///
-    /// ```swift
-    /// let message = try MIMEDecoder().decode(mimeString)
-    /// let attrs = message.contentTypeAttributes
-    /// print(attrs.value)         // "multipart/mixed"
-    /// print(attrs["boundary"])   // "simple"
-    /// print(attrs["charset"])    // "utf-8"
-    /// ```
-    public var contentTypeAttributes: MIMEHeaderAttributes {
-        MIMEHeaderAttributes.parse(headers["Content-Type"])
     }
 
     /// Parse attributes from any header value.
@@ -196,9 +158,8 @@ public struct MIMEHeaderAttributes: Sendable, Equatable {
 ///
 /// ```swift
 /// let part = message.parts[0]
-/// print(part.contentType)  // e.g., "text/plain"
+/// print(part.headers["Content-Type"])  // e.g., "text/plain"
 /// print(part.body)          // The actual content
-/// print(part.charset)       // e.g., "utf-8"
 /// ```
 public struct MIMEPart: Sendable, Identifiable {
     public let id: UUID
@@ -209,43 +170,6 @@ public struct MIMEPart: Sendable, Identifiable {
         self.id = id
         self.headers = headers
         self.body = body
-    }
-
-    /// The "Date" header value parsed as a Date
-    public var date: Date? {
-        guard let dateString = headers["Date"] else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-        return formatter.date(from: dateString)
-    }
-
-    /// The content type of this part (e.g., "text/plain", "text/html")
-    public var contentType: String? {
-        guard let value = headers["Content-Type"] else { return nil }
-        let attributes = MIMEHeaderAttributes.parse(value)
-        return attributes.value.isEmpty ? nil : attributes.value
-    }
-
-    /// The charset specified in the Content-Type header (e.g., "utf-8")
-    public var charset: String? {
-        contentTypeAttributes["charset"]
-    }
-
-    /// All attributes from the Content-Type header.
-    ///
-    /// Returns a parsed representation of the Content-Type header including
-    /// the primary media type and all parameters.
-    ///
-    /// ```swift
-    /// let part = message.parts[0]
-    /// let attrs = part.contentTypeAttributes
-    /// print(attrs.value)         // "text/plain"
-    /// print(attrs["charset"])    // "utf-8"
-    /// print(attrs["format"])     // "flowed"
-    /// ```
-    public var contentTypeAttributes: MIMEHeaderAttributes {
-        MIMEHeaderAttributes.parse(headers["Content-Type"])
     }
 
     /// Parse attributes from any header value.
@@ -757,7 +681,7 @@ extension MIMEMessage {
     /// - Returns: An array of matching parts
     public func parts(withContentType contentType: String) -> [MIMEPart] {
         parts.filter { part in
-            part.contentType?.lowercased() == contentType.lowercased()
+            part.headers["Content-Type"]?.lowercased() == contentType.lowercased()
         }
     }
 
@@ -773,7 +697,7 @@ extension MIMEMessage {
     /// - Returns: The first matching part, or nil if not found
     public func firstPart(withContentType contentType: String) -> MIMEPart? {
         parts.first { part in
-            part.contentType?.lowercased() == contentType.lowercased()
+            part.headers["Content-Type"]?.lowercased() == contentType.lowercased()
         }
     }
 

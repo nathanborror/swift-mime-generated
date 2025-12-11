@@ -222,20 +222,20 @@ public struct MIMEValidator: Sendable {
 
         // Validate MIME-Version if required
         if requireMimeVersion {
-            if message.mimeVersion == nil {
+            if message.headers["MIME-Version"] == nil {
                 errors.append(.missingRequiredHeader("MIME-Version"))
             }
         }
 
         // Validate Content-Type header
-        guard let contentType = message.contentType else {
+        guard message.headers["Content-Type"] != nil else {
             errors.append(.invalidContentType("Content-Type header is missing"))
             return .failure(errors: errors, warnings: warnings)
         }
 
         // Extract the main content type (without parameters)
-        let mainContentType =
-            contentType.components(separatedBy: ";")
+        let mainContentType = (message.headers["Content-Type"] ?? "")
+            .components(separatedBy: ";")
             .first?
             .trimmingCharacters(in: .whitespaces)
             .lowercased() ?? ""
@@ -284,7 +284,7 @@ public struct MIMEValidator: Sendable {
         var errors: [MIMEValidationError] = []
         var warnings: [String] = []
 
-        guard let contentType = part.contentType?.lowercased() else {
+        guard let contentType = part.headers["Content-Type"]?.lowercased() else {
             errors.append(.partMissingHeader(partIndex: index, header: "Content-Type"))
             return .failure(errors: errors, warnings: warnings)
         }
@@ -314,7 +314,7 @@ public struct MIMEValidator: Sendable {
         warnings: inout [String]
     ) {
         // Check for boundary
-        guard message.contentTypeAttributes["boundary"] != nil else {
+        guard message.headerAttributes("Content-Type")["boundary"] != nil else {
             if strictMultipart {
                 errors.append(.missingBoundary)
             } else {

@@ -28,11 +28,11 @@ import Testing
     #expect(message.parts.count == 2)
 
     let plainPart = message.parts[0]
-    #expect(plainPart.contentType == "text/plain")
+    #expect(plainPart.headers["Content-Type"] == "text/plain")
     #expect(plainPart.body == "Hello, World!")
 
     let htmlPart = message.parts[1]
-    #expect(htmlPart.contentType == "text/html")
+    #expect(htmlPart.headers["Content-Type"] == "text/html")
     #expect(htmlPart.body == "<h1>Hello, World!</h1>")
 }
 
@@ -142,7 +142,7 @@ import Testing
 
     // Test book-info part
     let bookInfo = message.parts[0]
-    #expect(bookInfo.contentType == "text/book-info")
+    #expect(bookInfo.headers["Content-Type"] == "text/book-info")
     #expect(bookInfo.headers["Title"] == "Why Greatness Cannot Be Planned")
     #expect(bookInfo.headers["Subtitle"] == "The Myth of the Objective")
     #expect(bookInfo.headers["Authors"] == "Kenneth O. Stanley, Joel Lehman")
@@ -153,26 +153,26 @@ import Testing
 
     // Test quote part
     let quote = message.parts[1]
-    #expect(quote.contentType == "text/quote")
+    #expect(quote.headerAttributes("Content-Type").value == "text/quote")
     #expect(quote.headers["Page"] == "10")
     #expect(quote.headers["Date"] == "Thu, 29 May 2025 16:20:00 -0700")
     #expect(quote.body.contains("Sometimes the best way to achieve something great"))
 
     // Test note part
     let note = message.parts[2]
-    #expect(note.contentType == "text/note")
+    #expect(note.headerAttributes("Content-Type").value == "text/note")
     #expect(note.headers["Page"] == "10")
     #expect(note.body.contains("very cathartic"))
 
     // Test progress part
     let progress = message.parts[3]
-    #expect(progress.contentType == "text/progress")
+    #expect(progress.headers["Content-Type"] == "text/progress")
     #expect(progress.headers["Page"] == "65")
     #expect(progress.body.isEmpty)
 
     // Test review part
     let review = message.parts[4]
-    #expect(review.contentType == "text/review")
+    #expect(review.headerAttributes("Content-Type").value == "text/review")
     #expect(review.headers["Rating"] == "4.5")
     #expect(review.headers["Spoilers"] == "false")
     #expect(review.body.contains("I enoyed this book!"))
@@ -347,10 +347,10 @@ import Testing
     #expect(message.parts.count == 2)
 
     let plainPart = message.parts[0]
-    #expect(plainPart.contentType == "text/plain")
+    #expect(plainPart.headerAttributes("Content-Type").value == "text/plain")
 
     let htmlPart = message.parts[1]
-    #expect(htmlPart.contentType == "text/html")
+    #expect(htmlPart.headerAttributes("Content-Type").value == "text/html")
 }
 
 @Test func testConvenienceHeaderAccessors() async throws {
@@ -374,10 +374,10 @@ import Testing
     #expect(message.headers["From"] == "sender@example.com")
     #expect(message.headers["To"] == "recipient@example.com")
     #expect(message.headers["Subject"] == "Test Message")
-    #expect(message.date?.ISO8601Format() == "2024-01-01T20:00:00Z")
-    #expect(message.mimeVersion == "1.0")
-    #expect(message.contentType != nil)
-    #expect(message.contentType?.contains("multipart/mixed") == true)
+    #expect(message.headers["Date"] == "Mon, 01 Jan 2024 12:00:00 -0800")
+    #expect(message.headers["MIME-Version"] == "1.0")
+    #expect(message.headers["Content-Type"] != nil)
+    #expect(message.headers["Content-Type"]?.contains("multipart/mixed") == true)
 }
 
 @Test func testMIMEVersionOptional() async throws {
@@ -402,15 +402,14 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Verify MIME-Version is not present
-    #expect(message.mimeVersion == nil)
     #expect(message.headers["MIME-Version"] == nil)
 
     // Verify message parses correctly without MIME-Version
     #expect(message.headers["From"] == "sender@example.com")
     #expect(message.headers["Subject"] == "Test Without MIME-Version")
     #expect(message.parts.count == 2)
-    #expect(message.parts[0].contentType == "text/plain")
-    #expect(message.parts[1].contentType == "text/html")
+    #expect(message.parts[0].headers["Content-Type"] == "text/plain")
+    #expect(message.parts[1].headers["Content-Type"] == "text/html")
 }
 
 @Test func testCharsetExtraction() async throws {
@@ -434,9 +433,9 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts[0].charset == "utf-8")
-    #expect(message.parts[1].charset == "iso-8859-1")
-    #expect(message.parts[2].charset == nil)
+    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
+    #expect(message.parts[1].headerAttributes("Content-Type")["charset"] == "iso-8859-1")
+    #expect(message.parts[2].headerAttributes("Content-Type")["charset"] == nil)
 }
 
 @Test func testHasPartMethod() async throws {
@@ -495,8 +494,8 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].contentType == "text/plain")
-    #expect(message.parts[0].charset == "utf-8")
+    #expect(message.parts[0].headerAttributes("Content-Type").value == "text/plain")
+    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
     #expect(message.parts[0].body.contains("This is a simple text message"))
 }
 
@@ -516,7 +515,7 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].contentType == "text/html")
+    #expect(message.parts[0].headers["Content-Type"] == "text/html")
     #expect(message.parts[0].body.contains("<h1>Hello World</h1>"))
     #expect(message.parts[0].body.contains("<p>This is an HTML message.</p>"))
 }
@@ -536,7 +535,7 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].contentType == "application/json")
+    #expect(message.parts[0].headers["Content-Type"] == "application/json")
     #expect(message.parts[0].body.contains("\"name\": \"John Doe\""))
     #expect(message.parts[0].body.contains("\"active\": true"))
 }
@@ -554,7 +553,7 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].contentType == nil)
+    #expect(message.parts[0].headers["Content-Type"] == nil)
     #expect(message.parts[0].body.contains("This message has no Content-Type header"))
 }
 
@@ -1126,7 +1125,7 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
     let part = message.parts[0]
-    let attrs = part.contentTypeAttributes
+    let attrs = part.headerAttributes("Content-Type")
 
     #expect(attrs.value == "text/plain")
     #expect(attrs["charset"] == "utf-8")
@@ -1145,7 +1144,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let attrs = message.contentTypeAttributes
+    let attrs = message.headerAttributes("Content-Type")
 
     #expect(attrs.value == "multipart/mixed")
     #expect(attrs["boundary"] == "test")
@@ -1215,13 +1214,13 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Message contentType should be just the media type
-    #expect(message.contentType == "multipart/mixed")
+    #expect(message.headers["Content-Type"] == "multipart/mixed; boundary=\"test\"")
 
     // Part contentType should be just the media type
-    #expect(message.parts[0].contentType == "text/plain")
+    #expect(message.parts[0].headerAttributes("Content-Type").value == "text/plain")
 
     // But charset should still be accessible
-    #expect(message.parts[0].charset == "utf-8")
+    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
 }
 
 @Test func testHeaderAttributesEquality() async throws {
@@ -1265,6 +1264,6 @@ import Testing
 
     // Should successfully parse with the boundary
     #expect(message.parts.count == 2)
-    #expect(message.parts[0].contentType == "text/plain")
-    #expect(message.parts[1].contentType == "text/html")
+    #expect(message.parts[0].headers["Content-Type"] == "text/plain")
+    #expect(message.parts[1].headers["Content-Type"] == "text/html")
 }

@@ -56,14 +56,14 @@ Content-Type: text/html
 let message = try MIMEDecoder().decode(mimeString)
 
 // Access top-level headers
-print(message.from)  // "sender@example.com"
-print(message.date)  // "Mon, 01 Jan 2024 12:00:00 -0800"
+print(message.headers["From"])  // "sender@example.com"
+print(message.headers["Date"])  // "Mon, 01 Jan 2024 12:00:00 -0800"
 
 // Access parts
 print(message.parts.count)  // 2
 
 for part in message.parts {
-    print(part.contentType)  // "text/plain", "text/html"
+    print(part.headers["Content-Type"])  // "text/plain", "text/html"
     print(part.body)
 }
 ```
@@ -92,7 +92,7 @@ if let body = message.body {
 
 // Or access via parts array
 print(message.parts.count)  // 1
-print(message.parts[0].contentType)  // "text/plain"
+print(message.parts[0].headers["Content-Type"])  // "text/plain"
 print(message.parts[0].body)  // "This is a simple text message..."
 ```
 
@@ -106,7 +106,7 @@ let data = mimeString.data(using: .utf8)!
 let message = try MIMEDecoder().decode(data)
 
 // The Data will be decoded as UTF-8
-print(message.from)
+print(message.headers["From"])
 print(message.parts.count)
 ```
 
@@ -240,15 +240,15 @@ let contentType2 = message.headers["content-type"]
 let contentType3 = message.headers["CONTENT-TYPE"]
 
 // MIME-Version header is optional
-let mimeVersion = message.mimeVersion  // May be nil
+let mimeVersion = message.headers["MIME-Version"]  // May be nil
 ```
 
 Part-specific headers:
 
 ```swift
 let part = message.parts[0]
-print(part.contentType)  // "text/plain"
-print(part.charset)      // "utf-8"
+print(part.headers["Content-Type"]) // "text/plain"
+print(part.headerAttributes("Content-Type")["charset"]) // "utf-8"
 print(part.headers["Custom-Header"])
 ```
 
@@ -260,7 +260,7 @@ Many MIME headers contain a primary value followed by semicolon-separated attrib
 let message = try MIMEDecoder().decode(mimeString)
 
 // Access Content-Type attributes on the message
-let attrs = message.contentTypeAttributes
+let attrs = message.headerAttributes("Content-Type")
 print(attrs.value)         // "multipart/mixed"
 print(attrs["boundary"])   // "simple"
 print(attrs["charset"])    // "utf-8" (if present)
@@ -268,8 +268,8 @@ print(attrs.all)           // Dictionary of all attributes
 
 // Access Content-Type attributes on a part
 let part = message.parts[0]
-let partAttrs = part.contentTypeAttributes
-print(partAttrs.value)     // "text/plain"
+let partAttrs = part.headerAttributes("Content-Type")
+print(partAttrs.value)      // "text/plain"
 print(partAttrs["charset"]) // "utf-8"
 print(partAttrs["format"])  // "flowed"
 
@@ -294,7 +294,7 @@ Common use cases:
 
 ```swift
 // Extract charset for text content
-if let charset = part.charset {
+if let charset = part.headerAttributes("Content-Type")["charset"] {
     print("Charset: \(charset)")
 }
 
@@ -305,7 +305,7 @@ if disposition.value == "attachment", let filename = disposition["filename"] {
 }
 
 // Access boundary for multipart messages
-if let boundary = message.contentTypeAttributes["boundary"] {
+if let boundary = message.headerAttributes("Content-Type")["boundary"] {
     print("Boundary: \(boundary)")
 }
 ```
@@ -332,21 +332,21 @@ let mimeContent = """
 let message = try MIMEDecoder().decode(mimeContent)
 
 // Parse message-level Content-Type attributes
-let msgAttrs = message.contentTypeAttributes
+let msgAttrs = message.headerAttributes("Content-Type")
 print(msgAttrs.value)         // "multipart/mixed"
 print(msgAttrs["boundary"])   // "docs"
 print(msgAttrs["charset"])    // "utf-8"
 
 // Parse first part (text/plain)
 let textPart = message.parts[0]
-let textAttrs = textPart.contentTypeAttributes
+let textAttrs = textPart.headerAttributes("Content-Type")
 print(textAttrs.value)        // "text/plain"
 print(textAttrs["charset"])   // "utf-8"
 print(textAttrs["format"])    // "flowed"
 
 // Parse second part (attachment)
 let pdfPart = message.parts[1]
-let pdfAttrs = pdfPart.contentTypeAttributes
+let pdfAttrs = pdfPart.headerAttributes("Content-Type")
 print(pdfAttrs.value)         // "application/pdf"
 print(pdfAttrs["name"])       // "report.pdf"
 
@@ -799,13 +799,6 @@ Represents a complete MIME message with headers and parts.
 - `headers: MIMEHeaders` - The top-level headers
 - `parts: [MIMEPart]` - The individual parts of the message
 - `body: String?` - The body content for non-multipart messages (returns nil for multipart messages)
-- `from: String?` - The "From" header value
-- `to: String?` - The "To" header value
-- `subject: String?` - The "Subject" header value
-- `date: String?` - The "Date" header value
-- `mimeVersion: String?` - The "MIME-Version" header value (optional, may be nil)
-- `contentType: String?` - The primary content type value (e.g., "multipart/mixed")
-- `contentTypeAttributes: MIMEHeaderAttributes` - Parsed Content-Type header with all attributes
 
 #### Methods
 
@@ -828,9 +821,6 @@ Represents a single part of a multipart MIME message.
 
 - `headers: MIMEHeaders` - The headers for this part
 - `body: String` - The body content
-- `contentType: String?` - The primary content type value (e.g., "text/plain")
-- `contentTypeAttributes: MIMEHeaderAttributes` - Parsed Content-Type header with all attributes
-- `charset: String?` - The charset parameter from Content-Type (e.g., "utf-8")
 - `decodedBody: String` - The decoded body content
 
 #### Methods
