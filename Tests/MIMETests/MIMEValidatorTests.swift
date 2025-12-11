@@ -328,7 +328,7 @@ import Testing
         --boundary123--
         """
 
-    let message = try MIMEParser.parse(mimeString)
+    let message = try MIMEDecoder().decode(mimeString)
 
     let expectation = MIMEHeaderExpectation(
         contentType: "text/plain",
@@ -353,7 +353,7 @@ import Testing
         --boundary123--
         """
 
-    let message = try MIMEParser.parse(mimeString)
+    let message = try MIMEDecoder().decode(mimeString)
 
     let expectation = MIMEHeaderExpectation(
         contentType: "text/plain",

@@ -4,10 +4,10 @@ import Foundation
 
 /// Represents a complete MIME message with headers and parts.
 ///
-/// Use `MIMEParser.parse(_:)` to create a `MIMEMessage` from a string:
+/// Use `MIMEDecoder().decode(_:)` to create a `MIMEMessage` from a string:
 ///
 /// ```swift
-/// let message = try MIMEParser.parse(mimeString)
+/// let message = try MIMEDecoder().decode(mimeString)
 /// print(message.from)
 /// for part in message.parts {
 ///     print(part.contentType)
@@ -49,7 +49,7 @@ public struct MIMEMessage: Sendable {
     /// the primary media type and all parameters (like boundary, charset, etc.).
     ///
     /// ```swift
-    /// let message = try MIMEParser.parse(mimeString)
+    /// let message = try MIMEDecoder().decode(mimeString)
     /// let attrs = message.contentTypeAttributes
     /// print(attrs.value)         // "multipart/mixed"
     /// print(attrs["boundary"])   // "simple"
@@ -65,7 +65,7 @@ public struct MIMEMessage: Sendable {
     /// `value; param=value` format.
     ///
     /// ```swift
-    /// let message = try MIMEParser.parse(mimeString)
+    /// let message = try MIMEDecoder().decode(mimeString)
     /// let disposition = message.headerAttributes("Content-Disposition")
     /// print(disposition.value)         // "inline"
     /// print(disposition["filename"])   // "image.png"
@@ -84,7 +84,7 @@ public struct MIMEMessage: Sendable {
     /// this returns nil and you should access individual parts instead.
     ///
     /// ```swift
-    /// let message = try MIMEParser.parse(simpleMessage)
+    /// let message = try MIMEDecoder().decode(simpleMessage)
     /// if let body = message.body {
     ///     print(body)  // Direct access to body content
     /// }
@@ -101,40 +101,14 @@ public struct MIMEMessage: Sendable {
     /// with headers and body.
     ///
     /// ```swift
-    /// var message = try MIMEParser.parse(mimeString)
+    /// var message = try MIMEDecoder().decode(mimeString)
     /// message.headers["From"] = "new@example.com"
     /// let encoded = message.encode()
     /// ```
     ///
     /// - Returns: The MIME message as data
     public func encode() -> Data {
-        var result = ""
-
-        // Encode headers
-        for (key, value) in headers {
-            result += "\(key): \(value)\n"
-        }
-
-        // Extract boundary if present
-        if let boundary = MIMEParser.extractBoundary(from: headers["Content-Type"]) {
-            // Multipart message
-            result += "\n"
-
-            for part in parts {
-                result += "--\(boundary)\n"
-                result += String(data: part.encode(), encoding: .utf8) ?? ""
-            }
-
-            result += "--\(boundary)--\n"
-        } else {
-            // Non-multipart message
-            result += "\n"
-            if parts.count == 1 {
-                result += parts[0].body
-            }
-        }
-
-        return result.data(using: .utf8) ?? Data()
+        return MIMEEncoder().encode(self)
     }
 }
 
@@ -326,21 +300,7 @@ public struct MIMEPart: Sendable, Identifiable {
     ///
     /// - Returns: The MIME part as data
     public func encode() -> Data {
-        var result = ""
-
-        // Encode headers
-        for (key, value) in headers {
-            result += "\(key): \(value)\n"
-        }
-
-        // Empty line between headers and body
-        result += "\n"
-
-        // Body
-        result += body
-        result += "\n"
-
-        return result.data(using: .utf8) ?? Data()
+        return MIMEEncoder().encode(self)
     }
 }
 
@@ -494,7 +454,7 @@ public struct MIMEHeaders: Sendable, Equatable {
 ///     --boundary--
 ///     """
 ///
-/// let message = try MIMEParser.parse(mimeString)
+/// let message = try MIMEDecoder().decode(mimeString)
 /// print(message.parts.count)  // 1
 /// ```
 ///
@@ -508,22 +468,24 @@ public struct MIMEHeaders: Sendable, Equatable {
 ///     Hello, World!
 ///     """
 ///
-/// let message = try MIMEParser.parse(simpleMessage)
+/// let message = try MIMEDecoder().decode(simpleMessage)
 /// print(message.parts.count)  // 1
 /// print(message.parts[0].body)  // "Hello, World!"
 /// ```
-public enum MIMEParser {
+public struct MIMEDecoder {
 
-    /// Parse a MIME message from Data.
+    public init() {}
+
+    /// Decode a MIME message from Data.
     ///
     /// Converts the Data to a UTF-8 string and parses it as a MIME message.
     /// Supports both multipart messages (with boundaries) and non-multipart messages.
     /// Non-multipart messages are treated as a single part containing the entire body.
     ///
     /// - Parameter data: The MIME message content as Data
-    /// - Returns: A parsed `MIMEMessage` with headers and parts
+    /// - Returns: A decoded `MIMEMessage` with headers and parts
     /// - Throws: `MIMEError.invalidUTF8` if the data cannot be decoded as UTF-8, or other parsing errors
-    public static func parse(_ data: Data) throws -> MIMEMessage {
+    public func decode(_ data: Data) throws -> MIMEMessage {
         guard let content = String(data: data, encoding: .utf8) else {
             throw MIMEError.invalidUTF8
         }
@@ -531,24 +493,24 @@ public enum MIMEParser {
         return try parseString(content)
     }
 
-    /// Parse a MIME message from a string.
+    /// Decode a MIME message from a string.
     ///
     /// Convenience method that converts the string to UTF-8 data and parses it.
     /// Supports both multipart messages (with boundaries) and non-multipart messages.
     /// Non-multipart messages are treated as a single part containing the entire body.
     ///
     /// - Parameter content: The MIME message content as a string
-    /// - Returns: A parsed `MIMEMessage` with headers and parts
-    /// - Throws: Parsing errors if the MIME format is invalid
-    public static func parse(_ content: String) throws -> MIMEMessage {
+    /// - Returns: A decoded `MIMEMessage` with headers and parts
+    /// - Throws: Decoding errors if the MIME format is invalid
+    public func decode(_ content: String) throws -> MIMEMessage {
         guard let data = content.data(using: .utf8) else {
             throw MIMEError.invalidUTF8
         }
-        return try parse(data)
+        return try decode(data)
     }
 
     /// Internal method to parse MIME message from a string.
-    private static func parseString(_ content: String) throws -> MIMEMessage {
+    private func parseString(_ content: String) throws -> MIMEMessage {
         let lines = content.components(separatedBy: .newlines)
 
         // Parse top-level headers
@@ -591,13 +553,13 @@ public enum MIMEParser {
     }
 
     /// Extract boundary from Content-Type header
-    static func extractBoundary(from contentType: String?) -> String? {
+    private func extractBoundary(from contentType: String?) -> String? {
         let attributes = MIMEHeaderAttributes.parse(contentType)
         return attributes["boundary"]
     }
 
     /// Parse headers from lines
-    private static func parseHeaders(_ lines: [String]) -> MIMEHeaders {
+    private func parseHeaders(_ lines: [String]) -> MIMEHeaders {
         var headers = MIMEHeaders()
         var currentKey: String?
         var currentValue: String = ""
@@ -633,7 +595,7 @@ public enum MIMEParser {
     }
 
     /// Parse multipart body into individual parts
-    private static func parseParts(_ body: String, boundary: String) throws -> [MIMEPart] {
+    private func parseParts(_ body: String, boundary: String) throws -> [MIMEPart] {
         var parts: [MIMEPart] = []
 
         let startBoundary = "--" + boundary
@@ -699,6 +661,85 @@ public enum MIMEParser {
         }
 
         return parts
+    }
+}
+
+// MARK: - MIME Encoder
+
+/// Encodes MIME messages to data.
+///
+/// The encoder supports both multipart messages (with boundaries) and
+/// non-multipart messages.
+///
+/// Example:
+/// ```swift
+/// let encoder = MIMEEncoder()
+/// let data = encoder.encode(message)
+/// ```
+public struct MIMEEncoder {
+
+    public init() {}
+
+    /// Encode a MIME message to Data.
+    ///
+    /// - Parameter message: The MIME message to encode
+    /// - Returns: The encoded message as Data
+    public func encode(_ message: MIMEMessage) -> Data {
+        var result = ""
+
+        // Encode headers
+        for (key, value) in message.headers {
+            result += "\(key): \(value)\n"
+        }
+
+        // Extract boundary if present
+        if let boundary = extractBoundary(from: message.headers["Content-Type"]) {
+            // Multipart message
+            result += "\n"
+
+            for part in message.parts {
+                result += "--\(boundary)\n"
+                result += String(data: encode(part), encoding: .utf8) ?? ""
+            }
+
+            result += "--\(boundary)--\n"
+        } else {
+            // Non-multipart message
+            result += "\n"
+            if message.parts.count == 1 {
+                result += message.parts[0].body
+            }
+        }
+
+        return result.data(using: .utf8) ?? Data()
+    }
+
+    /// Encode a MIME part to Data.
+    ///
+    /// - Parameter part: The MIME part to encode
+    /// - Returns: The encoded part as Data
+    public func encode(_ part: MIMEPart) -> Data {
+        var result = ""
+
+        // Encode headers
+        for (key, value) in part.headers {
+            result += "\(key): \(value)\n"
+        }
+
+        // Empty line between headers and body
+        result += "\n"
+
+        // Body
+        result += part.body
+        result += "\n"
+
+        return result.data(using: .utf8) ?? Data()
+    }
+
+    /// Extract boundary from Content-Type header
+    private func extractBoundary(from contentType: String?) -> String? {
+        let attributes = MIMEHeaderAttributes.parse(contentType)
+        return attributes["boundary"]
     }
 }
 

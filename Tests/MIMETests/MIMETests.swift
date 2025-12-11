@@ -21,7 +21,7 @@ import Testing
         --simple--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.headers["From"] == "Test User <test@example.com>")
     #expect(message.headers["MIME-Version"] == "1.0")
@@ -48,7 +48,7 @@ import Testing
         Body content
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     let keys = message.headers.keys
     #expect(keys.count == 6)
@@ -71,7 +71,7 @@ import Testing
 
     let message = MIMEMessage(headers: headers, parts: [])
     let encoded = message.encode()
-    let reparsed = try MIMEParser.parse(encoded)
+    let reparsed = try MIMEDecoder().decode(encoded)
 
     let keys = reparsed.headers.keys
     #expect(keys.count == 6)
@@ -129,7 +129,7 @@ import Testing
         --bookmark--
         """
 
-    let message = try MIMEParser.parse(bookmarkContent)
+    let message = try MIMEDecoder().decode(bookmarkContent)
 
     // Test headers
     #expect(
@@ -207,7 +207,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     let plainParts = message.parts(withContentType: "text/plain")
     #expect(plainParts.count == 2)
@@ -234,7 +234,7 @@ import Testing
         --quoted-boundary--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     #expect(message.parts.count == 2)
     #expect(message.parts[0].body == "Part 1")
     #expect(message.parts[1].body == "Part 2")
@@ -252,7 +252,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     // Without a boundary parameter, even multipart/* is treated as a single part
     #expect(message.parts.count == 1)
@@ -272,7 +272,7 @@ import Testing
         --empty--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     #expect(message.parts.count == 2)
     #expect(message.parts[0].body.isEmpty)
     #expect(message.parts[1].body.isEmpty)
@@ -292,7 +292,7 @@ import Testing
         --multiline--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     #expect(message.headers["From"]?.contains("Very Long Name") == true)
     #expect(message.headers["From"]?.contains("very.long.email@example.com") == true)
     #expect(message.parts.count == 1)
@@ -343,7 +343,7 @@ import Testing
         --boundary123--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     #expect(message.parts.count == 2)
 
     let plainPart = message.parts[0]
@@ -369,7 +369,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.headers["From"] == "sender@example.com")
     #expect(message.headers["To"] == "recipient@example.com")
@@ -399,7 +399,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     // Verify MIME-Version is not present
     #expect(message.mimeVersion == nil)
@@ -432,7 +432,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts[0].charset == "utf-8")
     #expect(message.parts[1].charset == "iso-8859-1")
@@ -454,7 +454,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.hasPart(withContentType: "text/plain"))
     #expect(message.hasPart(withContentType: "text/html"))
@@ -473,7 +473,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let part = message.parts[0]
 
     #expect(part.decodedBody == "Hello, 世界!")
@@ -492,7 +492,7 @@ import Testing
         It should be treated as a single part.
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
     #expect(message.parts[0].contentType == "text/plain")
@@ -513,7 +513,7 @@ import Testing
         </html>
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
     #expect(message.parts[0].contentType == "text/html")
@@ -533,7 +533,7 @@ import Testing
         }
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
     #expect(message.parts[0].contentType == "application/json")
@@ -551,7 +551,7 @@ import Testing
         It should still parse as a single part.
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
     #expect(message.parts[0].contentType == nil)
@@ -568,7 +568,7 @@ import Testing
         This is a simple message.
         """
 
-    let message = try MIMEParser.parse(simpleMessage)
+    let message = try MIMEDecoder().decode(simpleMessage)
 
     #expect(message.body != nil)
     #expect(message.body?.contains("Hello, World!") == true)
@@ -589,7 +589,7 @@ import Testing
         --test--
         """
 
-    let multipart = try MIMEParser.parse(multipartMessage)
+    let multipart = try MIMEDecoder().decode(multipartMessage)
 
     #expect(multipart.body == nil)
     #expect(multipart.parts.count == 2)
@@ -604,7 +604,7 @@ import Testing
         Original content
         """
 
-    var message = try MIMEParser.parse(mimeContent)
+    var message = try MIMEDecoder().decode(mimeContent)
 
     // Edit headers
     message.headers["From"] = "updated@example.com"
@@ -623,7 +623,7 @@ import Testing
         Original content
         """
 
-    var message = try MIMEParser.parse(mimeContent)
+    var message = try MIMEDecoder().decode(mimeContent)
 
     // Edit body
     message.parts[0].body = "Updated content"
@@ -643,7 +643,7 @@ import Testing
         --test--
         """
 
-    var message = try MIMEParser.parse(mimeContent)
+    var message = try MIMEDecoder().decode(mimeContent)
 
     // Edit part headers
     message.parts[0].headers["Content-Type"] = "text/html"
@@ -661,7 +661,7 @@ import Testing
         Hello, World!
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let encoded = message.encode()
     let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
@@ -686,7 +686,7 @@ import Testing
         --simple--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let encoded = message.encode()
     let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
@@ -727,7 +727,7 @@ import Testing
         """
 
     // Parse
-    var message = try MIMEParser.parse(original)
+    var message = try MIMEDecoder().decode(original)
 
     // Edit
     message.headers["From"] = "updated@example.com"
@@ -737,7 +737,7 @@ import Testing
     let encoded = message.encode()
 
     // Parse again
-    let reparsed = try MIMEParser.parse(encoded)
+    let reparsed = try MIMEDecoder().decode(encoded)
 
     // Verify
     #expect(reparsed.headers["From"] == "updated@example.com")
@@ -755,7 +755,7 @@ import Testing
         --test--
         """
 
-    var message = try MIMEParser.parse(mimeContent)
+    var message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
 
@@ -796,7 +796,7 @@ import Testing
         return
     }
 
-    let message = try MIMEParser.parse(data)
+    let message = try MIMEDecoder().decode(data)
 
     #expect(message.headers["From"] == "Test User <test@example.com>")
     #expect(message.parts.count == 2)
@@ -809,7 +809,7 @@ import Testing
     let invalidData = Data([0xFF, 0xFE, 0xFD])
 
     #expect(throws: MIMEError.invalidUTF8) {
-        try MIMEParser.parse(invalidData)
+        try MIMEDecoder().decode(invalidData)
     }
 }
 
@@ -821,7 +821,7 @@ import Testing
         """
 
     #expect(throws: MIMEError.noHeaders) {
-        try MIMEParser.parse(mimeContent)
+        try MIMEDecoder().decode(mimeContent)
     }
 }
 
@@ -830,7 +830,7 @@ import Testing
     let mimeContent = ""
 
     #expect(throws: MIMEError.noHeaders) {
-        try MIMEParser.parse(mimeContent)
+        try MIMEDecoder().decode(mimeContent)
     }
 }
 
@@ -849,7 +849,7 @@ import Testing
         Body content
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     // Subscript should return first value
     #expect(message.headers["Received"] == "from server1.example.com by server2.example.com")
@@ -951,7 +951,7 @@ import Testing
         Body
         """
 
-    let message = try MIMEParser.parse(originalContent)
+    let message = try MIMEDecoder().decode(originalContent)
 
     // Verify parsing
     #expect(message.headers.values(for: "Received").count == 3)
@@ -960,7 +960,7 @@ import Testing
     let encoded = message.encode()
 
     // Parse again
-    let reparsed = try MIMEParser.parse(encoded)
+    let reparsed = try MIMEDecoder().decode(encoded)
 
     // Verify all Received headers are preserved
     let receivedHeaders = reparsed.headers.values(for: "Received")
@@ -1011,7 +1011,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     // Check message-level duplicate headers
     #expect(message.headers.values(for: "Received").count == 2)
@@ -1124,7 +1124,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let part = message.parts[0]
     let attrs = part.contentTypeAttributes
 
@@ -1144,7 +1144,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let attrs = message.contentTypeAttributes
 
     #expect(attrs.value == "multipart/mixed")
@@ -1164,7 +1164,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let part = message.parts[0]
     let disposition = part.headerAttributes("Content-Disposition")
 
@@ -1185,7 +1185,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
     let disposition = message.headerAttributes("Content-Disposition")
 
     #expect(disposition.value == "inline")
@@ -1212,7 +1212,7 @@ import Testing
         --test--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     // Message contentType should be just the media type
     #expect(message.contentType == "multipart/mixed")
@@ -1261,7 +1261,7 @@ import Testing
         --test-boundary--
         """
 
-    let message = try MIMEParser.parse(mimeContent)
+    let message = try MIMEDecoder().decode(mimeContent)
 
     // Should successfully parse with the boundary
     #expect(message.parts.count == 2)

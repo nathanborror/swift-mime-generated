@@ -272,7 +272,7 @@ public struct MIMEValidator: Sendable {
 
     /// Validate a MIME message from a string
     public func validate(_ content: String) throws -> MIMEValidationResult {
-        let message = try MIMEParser.parse(content)
+        let message = try MIMEDecoder().decode(content)
         return validate(message)
     }
 

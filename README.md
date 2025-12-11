@@ -53,7 +53,7 @@ Content-Type: text/html
 --simple--
 """
 
-let message = try MIMEParser.parse(mimeString)
+let message = try MIMEDecoder().decode(mimeString)
 
 // Access top-level headers
 print(message.from)  // "sender@example.com"
@@ -83,7 +83,7 @@ This is a simple text message without multipart formatting.
 It will be parsed as a single part.
 """
 
-let message = try MIMEParser.parse(simpleMessage)
+let message = try MIMEDecoder().decode(simpleMessage)
 
 // Convenient access to body for non-multipart messages
 if let body = message.body {
@@ -103,7 +103,7 @@ The primary parsing method accepts `Data` objects. This is the recommended appro
 ```swift
 // Parse from Data (primary method)
 let data = mimeString.data(using: .utf8)!
-let message = try MIMEParser.parse(data)
+let message = try MIMEDecoder().decode(data)
 
 // The Data will be decoded as UTF-8
 print(message.from)
@@ -114,7 +114,7 @@ You can also use the convenience method that accepts a `String` directly:
 
 ```swift
 // Convenience method for String input
-let message = try MIMEParser.parse(mimeString)
+let message = try MIMEDecoder().decode(mimeString)
 ```
 
 If the `Data` cannot be decoded as UTF-8, a `MIMEError.invalidUTF8` error will be thrown.
@@ -143,7 +143,7 @@ MIME messages and parts have mutable properties, making them easy to edit. Once 
 #### Editing Headers
 
 ```swift
-var message = try MIMEParser.parse(mimeString)
+var message = try MIMEDecoder().decode(mimeString)
 
 // Edit top-level headers
 message.headers["From"] = "new-sender@example.com"
@@ -156,7 +156,7 @@ message.parts[0].headers["Content-Type"] = "text/html"
 #### Editing Body Content
 
 ```swift
-var message = try MIMEParser.parse(mimeString)
+var message = try MIMEDecoder().decode(mimeString)
 
 // Edit part body
 message.parts[0].body = "This is the new content!"
@@ -170,7 +170,7 @@ if message.parts.count == 1 {
 #### Adding and Removing Parts
 
 ```swift
-var message = try MIMEParser.parse(mimeString)
+var message = try MIMEDecoder().decode(mimeString)
 
 // Add a new part
 var newPartHeaders = MIMEHeaders()
@@ -187,7 +187,7 @@ message.parts.remove(at: 1)
 After editing, encode the message back to data:
 
 ```swift
-var message = try MIMEParser.parse(mimeString)
+var message = try MIMEDecoder().decode(mimeString)
 
 // Make some edits
 message.headers["From"] = "updated@example.com"
@@ -255,7 +255,7 @@ print(part.headers["Custom-Header"])
 Many MIME headers contain a primary value followed by semicolon-separated attributes (e.g., `Content-Type: text/plain; charset=utf-8; format=flowed`). The library provides convenient access to these attributes:
 
 ```swift
-let message = try MIMEParser.parse(mimeString)
+let message = try MIMEDecoder().decode(mimeString)
 
 // Access Content-Type attributes on the message
 let attrs = message.contentTypeAttributes
@@ -327,7 +327,7 @@ let mimeContent = """
     --docs--
     """
 
-let message = try MIMEParser.parse(mimeContent)
+let message = try MIMEDecoder().decode(mimeContent)
 
 // Parse message-level Content-Type attributes
 let msgAttrs = message.contentTypeAttributes
@@ -395,7 +395,7 @@ let mimeContent = """
     Body
     """
 
-let message = try MIMEParser.parse(mimeContent)
+let message = try MIMEDecoder().decode(mimeContent)
 let received = message.headers.values(for: "Received")
 print(received.count)  // 3
 ```
@@ -450,7 +450,7 @@ I enjoyed this book!
 --bookmark--
 """
 
-let message = try MIMEParser.parse(bookmarkData)
+let message = try MIMEDecoder().decode(bookmarkData)
 
 // Get book info
 if let bookInfo = message.firstPart(withContentType: "text/book-info") {
@@ -658,7 +658,7 @@ print(result.description)  // Includes summary, errors, and warnings
 You can validate individual parts separately:
 
 ```swift
-let message = try MIMEParser.parse(multipartMessage)
+let message = try MIMEDecoder().decode(multipartMessage)
 let part = message.parts[0]
 
 let expectation = MIMEHeaderExpectation(
@@ -749,22 +749,14 @@ Errors that can occur during validation.
 - `custom(String)` - Custom validation error
 
 
-### `MIMEParser`
+### `MIMEDecoder`
 
 The main entry point for parsing MIME messages. Supports both multipart messages (with boundaries) and non-multipart messages.
 
 #### Methods
 
-- `static func parse(_ data: Data) throws -> MIMEMessage`
-  - Primary parsing method that accepts MIME message data
-  - Converts the Data to a UTF-8 string and parses it as a MIME message
-  - Multipart messages are parsed using the boundary specified in the Content-Type header
-  - Non-multipart messages are treated as a single part containing the entire body
-  - Throws `MIMEError.invalidUTF8` if the data cannot be decoded as UTF-8
-- `static func parse(_ content: String) throws -> MIMEMessage`
-  - Convenience method that accepts a MIME message string
-  - Converts the string to UTF-8 data and parses it
-  - Equivalent to calling `parse(_:Data)` with the string's data
+- `decode(_: Data) throws -> MIMEMessage` - Decode a MIME message from data
+- `decode(_: String) throws -> MIMEMessage` - Decode a MIME message from a string
 
 ### `MIMEHeaderAttributes`
 
@@ -858,6 +850,21 @@ A case-insensitive collection for MIME headers with support for duplicate header
 - `func removeAll(_ key: String)` - Removes all headers with the given name
 - `func contains(_ key: String) -> Bool` - Check if a header exists
 - Conforms to `Collection`, so you can iterate over headers
+
+### `MIMEEncoder`
+
+Encodes MIME messages to data.
+
+#### Methods
+
+- `encode(_: MIMEMessage) -> Data` - Encode a MIME message to data
+- `encode(_: MIMEPart) -> Data` - Encode a MIME part to data
+
+Example:
+```swift
+let encoder = MIMEEncoder()
+let data = encoder.encode(message)
+```
 
 ### `MIMEError`
 
