@@ -184,7 +184,7 @@ message.parts.remove(at: 1)
 
 #### Encoding Back to MIME Format
 
-After editing, encode the message back to a string:
+After editing, encode the message back to data:
 
 ```swift
 var message = try MIMEParser.parse(mimeString)
@@ -194,7 +194,8 @@ message.headers["From"] = "updated@example.com"
 message.parts[0].body = "Updated content"
 
 // Encode back to MIME format
-let encodedString = message.encode()
+let encodedData = message.encode()
+let encodedString = String(data: encodedData, encoding: .utf8) ?? ""
 print(encodedString)
 // Output:
 // From: updated@example.com
@@ -216,8 +217,9 @@ var part = message.parts[0]
 part.body = "Modified part content"
 part.headers["Custom-Header"] = "Custom Value"
 
-let encodedPart = part.encode()
-print(encodedPart)
+let encodedData = part.encode()
+let encodedString = String(data: encodedData, encoding: .utf8) ?? ""
+print(encodedString)
 // Output:
 // Content-Type: text/plain
 // Custom-Header: Custom Value
@@ -821,8 +823,8 @@ Represents a complete MIME message with headers and parts.
   - Returns true if any part has the specified content type
 - `func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes`
   - Parses attributes from any header value
-- `func encode() -> String`
-  - Encodes the message back to MIME format string
+- `func encode() -> Data`
+  - Encodes the message back to MIME format data
 
 ### `MIMEPart`
 
@@ -841,8 +843,8 @@ Represents a single part of a multipart MIME message.
 
 - `func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes`
   - Parses attributes from any header value
-- `func encode() -> String`
-  - Encodes the part back to MIME format string
+- `func encode() -> Data`
+  - Encodes the part back to MIME format data
 
 ### `MIMEHeaders`
 

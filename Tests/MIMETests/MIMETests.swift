@@ -663,10 +663,11 @@ import Testing
 
     let message = try MIMEParser.parse(mimeContent)
     let encoded = message.encode()
+    let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
-    #expect(encoded.contains("From: sender@example.com"))
-    #expect(encoded.contains("Content-Type: text/plain"))
-    #expect(encoded.contains("Hello, World!"))
+    #expect(encodedString.contains("From: sender@example.com"))
+    #expect(encodedString.contains("Content-Type: text/plain"))
+    #expect(encodedString.contains("Hello, World!"))
 }
 
 @Test func testEncodingMultipartMessage() async throws {
@@ -687,15 +688,16 @@ import Testing
 
     let message = try MIMEParser.parse(mimeContent)
     let encoded = message.encode()
+    let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
-    #expect(encoded.contains("From: sender@example.com"))
-    #expect(encoded.contains("Content-Type: multipart/mixed; boundary=\"simple\""))
-    #expect(encoded.contains("--simple"))
-    #expect(encoded.contains("text/plain"))
-    #expect(encoded.contains("Hello, World!"))
-    #expect(encoded.contains("text/html"))
-    #expect(encoded.contains("<h1>Hello</h1>"))
-    #expect(encoded.contains("--simple--"))
+    #expect(encodedString.contains("From: sender@example.com"))
+    #expect(encodedString.contains("Content-Type: multipart/mixed; boundary=\"simple\""))
+    #expect(encodedString.contains("--simple"))
+    #expect(encodedString.contains("text/plain"))
+    #expect(encodedString.contains("Hello, World!"))
+    #expect(encodedString.contains("text/html"))
+    #expect(encodedString.contains("<h1>Hello</h1>"))
+    #expect(encodedString.contains("--simple--"))
 }
 
 @Test func testEncodingPart() async throws {
@@ -705,10 +707,11 @@ import Testing
 
     let part = MIMEPart(headers: headers, body: "Test content")
     let encoded = part.encode()
+    let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
-    #expect(encoded.contains("Content-Type: text/plain"))
-    #expect(encoded.contains("X-Custom: value"))
-    #expect(encoded.contains("Test content"))
+    #expect(encodedString.contains("Content-Type: text/plain"))
+    #expect(encodedString.contains("X-Custom: value"))
+    #expect(encodedString.contains("Test content"))
 }
 
 @Test func testRoundTripParseEditEncode() async throws {
@@ -928,11 +931,12 @@ import Testing
 
     let part = MIMEPart(headers: headers, body: "Test content")
     let encoded = part.encode()
+    let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
     // Should contain both Received headers
-    #expect(encoded.contains("Received: from server1.example.com"))
-    #expect(encoded.contains("Received: from server2.example.com"))
-    #expect(encoded.contains("From: sender@example.com"))
+    #expect(encodedString.contains("Received: from server1.example.com"))
+    #expect(encodedString.contains("Received: from server2.example.com"))
+    #expect(encodedString.contains("From: sender@example.com"))
 }
 
 @Test func testRoundTripWithDuplicateHeaders() async throws {

@@ -106,8 +106,8 @@ public struct MIMEMessage: Sendable {
     /// let encoded = message.encode()
     /// ```
     ///
-    /// - Returns: The MIME message as a string
-    public func encode() -> String {
+    /// - Returns: The MIME message as data
+    public func encode() -> Data {
         var result = ""
 
         // Encode headers
@@ -122,7 +122,7 @@ public struct MIMEMessage: Sendable {
 
             for part in parts {
                 result += "--\(boundary)\n"
-                result += part.encode()
+                result += String(data: part.encode(), encoding: .utf8) ?? ""
             }
 
             result += "--\(boundary)--\n"
@@ -134,7 +134,7 @@ public struct MIMEMessage: Sendable {
             }
         }
 
-        return result
+        return result.data(using: .utf8) ?? Data()
     }
 }
 
@@ -324,8 +324,8 @@ public struct MIMEPart: Sendable, Identifiable {
     /// let encoded = part.encode()
     /// ```
     ///
-    /// - Returns: The MIME part as a string
-    public func encode() -> String {
+    /// - Returns: The MIME part as data
+    public func encode() -> Data {
         var result = ""
 
         // Encode headers
@@ -340,7 +340,7 @@ public struct MIMEPart: Sendable, Identifiable {
         result += body
         result += "\n"
 
-        return result
+        return result.data(using: .utf8) ?? Data()
     }
 }
 
