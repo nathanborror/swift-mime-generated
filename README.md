@@ -194,7 +194,8 @@ message.headers["From"] = "updated@example.com"
 message.parts[0].body = "Updated content"
 
 // Encode back to MIME format
-let encodedData = message.encode()
+let encoder = MIMEEncoder()
+let encodedData = encoder.encode(message)
 let encodedString = String(data: encodedData, encoding: .utf8) ?? ""
 print(encodedString)
 // Output:
@@ -217,7 +218,8 @@ var part = message.parts[0]
 part.body = "Modified part content"
 part.headers["Custom-Header"] = "Custom Value"
 
-let encodedData = part.encode()
+let encoder = MIMEEncoder()
+let encodedData = encoder.encode(part)
 let encodedString = String(data: encodedData, encoding: .utf8) ?? ""
 print(encodedString)
 // Output:

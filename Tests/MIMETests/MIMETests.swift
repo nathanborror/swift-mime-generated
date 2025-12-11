@@ -70,7 +70,7 @@ import Testing
     headers["Content-Type"] = "text/plain"
 
     let message = MIMEMessage(headers: headers, parts: [])
-    let encoded = message.encode()
+    let encoded = MIMEEncoder().encode(message)
     let reparsed = try MIMEDecoder().decode(encoded)
 
     let keys = reparsed.headers.keys
@@ -662,7 +662,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let encoded = message.encode()
+    let encoded = MIMEEncoder().encode(message)
     let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
     #expect(encodedString.contains("From: sender@example.com"))
@@ -687,7 +687,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let encoded = message.encode()
+    let encoded = MIMEEncoder().encode(message)
     let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
     #expect(encodedString.contains("From: sender@example.com"))
@@ -706,7 +706,7 @@ import Testing
     headers["X-Custom"] = "value"
 
     let part = MIMEPart(headers: headers, body: "Test content")
-    let encoded = part.encode()
+    let encoded = MIMEEncoder().encode(part)
     let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
     #expect(encodedString.contains("Content-Type: text/plain"))
@@ -734,7 +734,7 @@ import Testing
     message.parts[0].body = "Updated content"
 
     // Encode
-    let encoded = message.encode()
+    let encoded = MIMEEncoder().encode(message)
 
     // Parse again
     let reparsed = try MIMEDecoder().decode(encoded)
@@ -930,7 +930,7 @@ import Testing
     headers.add("Received", value: "from server2.example.com")
 
     let part = MIMEPart(headers: headers, body: "Test content")
-    let encoded = part.encode()
+    let encoded = MIMEEncoder().encode(part)
     let encodedString = String(data: encoded, encoding: .utf8) ?? ""
 
     // Should contain both Received headers
@@ -957,7 +957,7 @@ import Testing
     #expect(message.headers.values(for: "Received").count == 3)
 
     // Encode back
-    let encoded = message.encode()
+    let encoded = MIMEEncoder().encode(message)
 
     // Parse again
     let reparsed = try MIMEDecoder().decode(encoded)

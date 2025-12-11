@@ -94,22 +94,6 @@ public struct MIMEMessage: Sendable {
         return parts[0].body
     }
 
-    /// Encodes the MIME message to a string representation.
-    ///
-    /// For multipart messages, this generates a properly formatted multipart message
-    /// with boundaries. For non-multipart messages, it generates a simple message
-    /// with headers and body.
-    ///
-    /// ```swift
-    /// var message = try MIMEDecoder().decode(mimeString)
-    /// message.headers["From"] = "new@example.com"
-    /// let encoded = message.encode()
-    /// ```
-    ///
-    /// - Returns: The MIME message as data
-    public func encode() -> Data {
-        return MIMEEncoder().encode(self)
-    }
 }
 
 // MARK: - MIME Header Attributes
@@ -288,20 +272,6 @@ public struct MIMEPart: Sendable, Identifiable {
         body
     }
 
-    /// Encodes the MIME part to a string representation.
-    ///
-    /// This generates the headers and body content for this part.
-    ///
-    /// ```swift
-    /// var part = message.parts[0]
-    /// part.body = "New content"
-    /// let encoded = part.encode()
-    /// ```
-    ///
-    /// - Returns: The MIME part as data
-    public func encode() -> Data {
-        return MIMEEncoder().encode(self)
-    }
 }
 
 // MARK: - MIME Headers
