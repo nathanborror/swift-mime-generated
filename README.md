@@ -121,6 +121,8 @@ If the `Data` cannot be decoded as UTF-8, a `MIMEError.invalidUTF8` error will b
 
 ### Finding Specific Parts
 
+#### By Content Type
+
 ```swift
 // Find all parts with a specific content type
 let plainParts = message.parts(withContentType: "text/plain")
@@ -133,6 +135,28 @@ if let htmlPart = message.firstPart(withContentType: "text/html") {
 // Check if a message contains a specific content type
 if message.hasPart(withContentType: "application/json") {
     print("Message contains JSON data")
+}
+```
+
+#### By Content-Disposition Name
+
+```swift
+// Find all parts with a specific content-disposition name
+let fooParts = message.parts(withContentDispositionName: "foo")
+
+// Find the first part with a specific content-disposition name
+if let fooPart = message.firstPart(withContentDispositionName: "foo") {
+    print(fooPart.body)
+}
+
+// Convenience method: part(named:)
+if let documentPart = message.part(named: "document") {
+    print(documentPart.body)
+}
+
+// Check if a message contains a part with a specific name
+if message.hasPart(withContentDispositionName: "image") {
+    print("Message contains a part named 'image'")
 }
 ```
 
@@ -808,6 +832,14 @@ Represents a complete MIME message with headers and parts.
   - Returns the first part with a specific content type
 - `func hasPart(withContentType contentType: String) -> Bool`
   - Returns true if any part has the specified content type
+- `func parts(withContentDispositionName name: String) -> [MIMEPart]`
+  - Returns all parts with a specific content-disposition name
+- `func firstPart(withContentDispositionName name: String) -> MIMEPart?`
+  - Returns the first part with a specific content-disposition name
+- `func part(named name: String) -> MIMEPart?`
+  - Convenience method that returns the first part with a specific content-disposition name
+- `func hasPart(withContentDispositionName name: String) -> Bool`
+  - Returns true if any part has the specified content-disposition name
 - `func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes`
   - Parses attributes from any header value
 - `func encode() -> Data`

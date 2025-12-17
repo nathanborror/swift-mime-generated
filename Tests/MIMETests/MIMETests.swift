@@ -1267,3 +1267,223 @@ import Testing
     #expect(message.parts[0].headers["Content-Type"] == "text/plain")
     #expect(message.parts[1].headers["Content-Type"] == "text/html")
 }
+
+@Test func testPartsWithContentDispositionName() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: inline; name="foo"
+
+        This is foo
+        --test-boundary
+        Content-Type: text/html
+        Content-Disposition: inline; name="bar"
+
+        This is bar
+        --test-boundary
+        Content-Type: application/json
+        Content-Disposition: attachment; name="foo"
+
+        This is another foo
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    let fooParts = message.parts(withContentDispositionName: "foo")
+    #expect(fooParts.count == 2)
+    #expect(fooParts[0].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is foo")
+    #expect(
+        fooParts[1].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is another foo")
+
+    let barParts = message.parts(withContentDispositionName: "bar")
+    #expect(barParts.count == 1)
+    #expect(barParts[0].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is bar")
+
+    let bazParts = message.parts(withContentDispositionName: "baz")
+    #expect(bazParts.count == 0)
+}
+
+@Test func testFirstPartWithContentDispositionName() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: inline; name="foo"
+
+        First foo
+        --test-boundary
+        Content-Type: text/html
+        Content-Disposition: inline; name="bar"
+
+        This is bar
+        --test-boundary
+        Content-Type: application/json
+        Content-Disposition: attachment; name="foo"
+
+        Second foo
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    let fooPart = message.firstPart(withContentDispositionName: "foo")
+    #expect(fooPart != nil)
+    #expect(fooPart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "First foo")
+
+    let barPart = message.firstPart(withContentDispositionName: "bar")
+    #expect(barPart != nil)
+    #expect(barPart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is bar")
+
+    let bazPart = message.firstPart(withContentDispositionName: "baz")
+    #expect(bazPart == nil)
+}
+
+@Test func testPartNamedConvenience() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: inline; name="document"
+
+        Document content
+        --test-boundary
+        Content-Type: image/png
+        Content-Disposition: inline; name="image"
+
+        Image data
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    let documentPart = message.part(named: "document")
+    #expect(documentPart != nil)
+    #expect(
+        documentPart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "Document content")
+
+    let imagePart = message.part(named: "image")
+    #expect(imagePart != nil)
+    #expect(imagePart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "Image data")
+
+    let unknownPart = message.part(named: "unknown")
+    #expect(unknownPart == nil)
+}
+
+@Test func testHasPartWithContentDispositionName() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: inline; name="present"
+
+        Content here
+        --test-boundary
+        Content-Type: text/html
+
+        No disposition header
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    #expect(message.hasPart(withContentDispositionName: "present") == true)
+    #expect(message.hasPart(withContentDispositionName: "absent") == false)
+}
+
+@Test func testContentDispositionNameCaseSensitive() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: inline; name="MyFile"
+
+        Content here
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    // Names should be case-sensitive
+    #expect(message.part(named: "MyFile") != nil)
+    #expect(message.part(named: "myfile") == nil)
+    #expect(message.part(named: "MYFILE") == nil)
+}
+
+@Test func testContentDispositionWithFilenameAndName() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: attachment; filename="file.txt"; name="textfile"
+
+        Text content
+        --test-boundary
+        Content-Type: image/png
+        Content-Disposition: inline; filename="photo.png"
+
+        Image without name
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    let textPart = message.part(named: "textfile")
+    #expect(textPart != nil)
+    #expect(textPart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "Text content")
+
+    // Part without name attribute should not match
+    let imagePart = message.part(named: "photo.png")
+    #expect(imagePart == nil)
+}
+
+@Test func testContentDispositionWithQuotedName() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+        Content-Disposition: inline; name="my file.txt"
+
+        Content with quoted name
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    let part = message.part(named: "my file.txt")
+    #expect(part != nil)
+    #expect(
+        part?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "Content with quoted name")
+}
+
+@Test func testPartsWithoutContentDisposition() async throws {
+    let mimeContent = """
+        Content-Type: multipart/mixed; boundary="test-boundary"
+
+        --test-boundary
+        Content-Type: text/plain
+
+        Part without disposition
+        --test-boundary
+        Content-Type: text/html
+        Content-Disposition: inline
+
+        Part with disposition but no name
+        --test-boundary--
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    // Should not find any parts when searching for a name
+    #expect(message.part(named: "anything") == nil)
+    #expect(message.hasPart(withContentDispositionName: "anything") == false)
+    #expect(message.parts(withContentDispositionName: "anything").count == 0)
+}

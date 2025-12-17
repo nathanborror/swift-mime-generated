@@ -708,6 +708,62 @@ extension MIMEMessage {
     public func hasPart(withContentType contentType: String) -> Bool {
         firstPart(withContentType: contentType) != nil
     }
+
+    /// Find all parts with a specific content-disposition name.
+    ///
+    /// ```swift
+    /// let fooParts = message.parts(withContentDispositionName: "foo")
+    /// ```
+    ///
+    /// - Parameter name: The content-disposition name to search for (case-sensitive)
+    /// - Returns: An array of matching parts
+    public func parts(withContentDispositionName name: String) -> [MIMEPart] {
+        parts.filter { part in
+            let disposition = part.headerAttributes("Content-Disposition")
+            return disposition["name"] == name
+        }
+    }
+
+    /// Find the first part with a specific content-disposition name.
+    ///
+    /// ```swift
+    /// if let fooPart = message.firstPart(withContentDispositionName: "foo") {
+    ///     print(fooPart.body)
+    /// }
+    /// ```
+    ///
+    /// - Parameter name: The content-disposition name to search for (case-sensitive)
+    /// - Returns: The first matching part, or nil if not found
+    public func firstPart(withContentDispositionName name: String) -> MIMEPart? {
+        parts.first { part in
+            let disposition = part.headerAttributes("Content-Disposition")
+            return disposition["name"] == name
+        }
+    }
+
+    /// Find the part with a specific content-disposition name.
+    ///
+    /// Convenience method that returns the first part matching the given name.
+    ///
+    /// ```swift
+    /// if let fooPart = message.part(named: "foo") {
+    ///     print(fooPart.body)
+    /// }
+    /// ```
+    ///
+    /// - Parameter name: The content-disposition name to search for (case-sensitive)
+    /// - Returns: The first matching part, or nil if not found
+    public func part(named name: String) -> MIMEPart? {
+        firstPart(withContentDispositionName: name)
+    }
+
+    /// Returns true if the message contains any parts with the specified content-disposition name.
+    ///
+    /// - Parameter name: The content-disposition name to check for (case-sensitive)
+    /// - Returns: True if at least one part has the specified content-disposition name
+    public func hasPart(withContentDispositionName name: String) -> Bool {
+        firstPart(withContentDispositionName: name) != nil
+    }
 }
 
 extension MIMEHeaders: ExpressibleByDictionaryLiteral {
