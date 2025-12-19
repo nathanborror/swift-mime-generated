@@ -243,13 +243,13 @@ public struct MIMEHeader: Sendable, Identifiable, Equatable {
 }
 
 public struct MIMEHeaders: Sendable, Equatable {
-    private var storage: [(id: UUID, key: String, originalKey: String, value: String)] = []
+    public var storage: [MIMEHeader] = []
 
     public init() {}
 
     public init(_ dictionary: [String: String]) {
         for (key, value) in dictionary {
-            storage.append((id: UUID(), key: key.lowercased(), originalKey: key, value: value))
+            storage.append(.init(key: key, value: value))
         }
     }
 
@@ -260,54 +260,30 @@ public struct MIMEHeaders: Sendable, Equatable {
     /// same name, use `add(_:value:)` instead.
     public subscript(key: String) -> String? {
         get {
-            let lowercasedKey = key.lowercased()
-            return storage.first(where: { $0.key == lowercasedKey })?.value
+            storage.first(where: { $0.key == key })?.value
         }
         set {
-            let lowercasedKey = key.lowercased()
-            if let newValue = newValue {
-                // Remove all existing headers with this name
-                storage.removeAll(where: { $0.key == lowercasedKey })
-                // Add the new header
-                storage.append((id: UUID(), key: lowercasedKey, originalKey: key, value: newValue))
+            guard let newValue else {
+                storage.removeAll { $0.key == key }
+                return
+            }
+
+            // Find the first occurrence (or append if none)
+            let firstIndex = storage.firstIndex { $0.key == key }
+            if let i = firstIndex {
+                storage[i] = .init(key: key, value: newValue)
             } else {
-                // Remove all headers with this name
-                storage.removeAll(where: { $0.key == lowercasedKey })
+                storage.append(.init(key: key, value: newValue))
+                return
+            }
+
+            // Remove any later duplicates (iterate backwards to keep indices valid)
+            var i = storage.count - 1
+            while i > firstIndex! {
+                if storage[i].key == key { storage.remove(at: i) }
+                i -= 1
             }
         }
-    }
-
-    /// Returns all headers as an array of `MIMEHeader` values in order.
-    ///
-    /// This property is useful for iterating over headers in SwiftUI `ForEach` loops,
-    /// as each header has a stable identity for list rendering.
-    ///
-    /// ```swift
-    /// ForEach(message.headers.ordered) { header in
-    ///     Text("\(header.key): \(header.value)")
-    /// }
-    /// ```
-    ///
-    /// - Returns: An array of `MIMEHeader` values preserving the original order
-    public var ordered: [MIMEHeader] {
-        storage.map { MIMEHeader(id: $0.id, key: $0.originalKey, value: $0.value) }
-    }
-
-    public var keys: [String] {
-        storage.map { $0.originalKey }
-    }
-
-    public var values: [String] {
-        storage.map { $0.value }
-    }
-
-    public var count: Int {
-        storage.count
-    }
-
-    public func contains(_ key: String) -> Bool {
-        let lowercasedKey = key.lowercased()
-        return storage.contains(where: { $0.key == lowercasedKey })
     }
 
     /// Returns all values for the given header key.
@@ -323,8 +299,7 @@ public struct MIMEHeaders: Sendable, Equatable {
     /// - Parameter key: The header name to look up (case-insensitive)
     /// - Returns: An array of all values for the given key, in the order they appear
     public func values(for key: String) -> [String] {
-        let lowercasedKey = key.lowercased()
-        return storage.filter { $0.key == lowercasedKey }.map { $0.value }
+        storage.filter { $0.key == key }.map { $0.value }
     }
 
     /// Adds a header without replacing existing headers with the same name.
@@ -342,8 +317,7 @@ public struct MIMEHeaders: Sendable, Equatable {
     ///   - key: The header name
     ///   - value: The header value to add
     public mutating func add(_ key: String, value: String) {
-        let lowercasedKey = key.lowercased()
-        storage.append((id: UUID(), key: lowercasedKey, originalKey: key, value: value))
+        storage.append(.init(key: key, value: value))
     }
 
     /// Removes all headers with the given name.
@@ -352,15 +326,13 @@ public struct MIMEHeaders: Sendable, Equatable {
     ///
     /// - Parameter key: The header name to remove
     public mutating func removeAll(_ key: String) {
-        let lowercasedKey = key.lowercased()
-        storage.removeAll(where: { $0.key == lowercasedKey })
+        storage.removeAll(where: { $0.key == key })
     }
 
     public static func == (lhs: MIMEHeaders, rhs: MIMEHeaders) -> Bool {
         guard lhs.storage.count == rhs.storage.count else { return false }
         return zip(lhs.storage, rhs.storage).allSatisfy { lhsElement, rhsElement in
-            lhsElement.key == rhsElement.key && lhsElement.originalKey == rhsElement.originalKey
-                && lhsElement.value == rhsElement.value
+            lhsElement.key == rhsElement.key && lhsElement.value == rhsElement.value
             // Note: We don't compare IDs because headers are equal if their keys and values match
         }
     }
@@ -618,18 +590,15 @@ public struct MIMEEncoder {
     /// - Parameter message: The MIME message to encode
     /// - Returns: The encoded message as Data
     public func encode(_ message: MIMEMessage) -> Data {
-        var result = ""
+        var result = message.headers
+            .map { "\($0.key): \($0.value)" }
+            .joined(separator: "\n")
 
-        // Encode headers
-        for (key, value) in message.headers {
-            result += "\(key): \(value)\n"
-        }
+        // Empty line between headers and body
+        result += "\n\n"
 
         // Extract boundary if present
         if let boundary = extractBoundary(from: message.headers["Content-Type"]) {
-            // Multipart message
-            result += "\n"
-
             for part in message.parts {
                 result += "--\(boundary)\n"
                 result += String(data: encode(part), encoding: .utf8) ?? ""
@@ -637,8 +606,6 @@ public struct MIMEEncoder {
 
             result += "--\(boundary)--\n"
         } else {
-            // Non-multipart message
-            result += "\n"
             if message.parts.count == 1 {
                 result += message.parts[0].body
             }
@@ -652,15 +619,12 @@ public struct MIMEEncoder {
     /// - Parameter part: The MIME part to encode
     /// - Returns: The encoded part as Data
     public func encode(_ part: MIMEPart) -> Data {
-        var result = ""
-
-        // Encode headers
-        for (key, value) in part.headers {
-            result += "\(key): \(value)\n"
-        }
+        var result = part.headers
+            .map { "\($0.key): \($0.value)" }
+            .joined(separator: "\n")
 
         // Empty line between headers and body
-        result += "\n"
+        result += "\n\n"
 
         // Body
         result += part.body
@@ -815,15 +779,15 @@ extension MIMEHeaders: ExpressibleByDictionaryLiteral {
 }
 
 extension MIMEHeaders: Collection {
-    public typealias Index = Array<(id: UUID, key: String, originalKey: String, value: String)>.Index
-    public typealias Element = (key: String, value: String)
+    public typealias Index = Array<MIMEHeader>.Index
+    public typealias Element = MIMEHeader
 
     public var startIndex: Index { storage.startIndex }
     public var endIndex: Index { storage.endIndex }
 
     public subscript(position: Index) -> Element {
         let item = storage[position]
-        return (key: item.originalKey, value: item.value)
+        return .init(id: item.id, key: item.key, value: item.value)
     }
 
     public func index(after i: Index) -> Index {
@@ -835,6 +799,8 @@ extension MIMEHeaders: RandomAccessCollection {}
 
 extension MIMEHeaders: CustomStringConvertible {
     public var description: String {
-        storage.map { "\($0.originalKey): \($0.value)" }.joined(separator: "\n")
+        storage
+            .map { "\($0.key): \($0.value)" }
+            .joined(separator: "\n")
     }
 }

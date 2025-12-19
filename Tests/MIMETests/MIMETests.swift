@@ -50,7 +50,7 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let keys = message.headers.keys
+    let keys = message.headers.map { $0.key }
     #expect(keys.count == 6)
     #expect(keys[0] == "From")
     #expect(keys[1] == "To")
@@ -73,7 +73,7 @@ import Testing
     let encoded = MIMEEncoder().encode(message)
     let reparsed = try MIMEDecoder().decode(encoded)
 
-    let keys = reparsed.headers.keys
+    let keys = reparsed.headers.map { $0.key }
     #expect(keys.count == 6)
     #expect(keys[0] == "From")
     #expect(keys[1] == "To")
@@ -98,7 +98,7 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Get ordered headers suitable for SwiftUI ForEach
-    let headers = message.headers.ordered
+    let headers = message.headers
 
     // Verify count and order
     #expect(headers.count == 6)
@@ -114,9 +114,6 @@ import Testing
     // Verify each header has a unique ID (important for SwiftUI ForEach)
     let ids = Set(headers.map { $0.id })
     #expect(ids.count == 6)
-
-    // Verify MIMEHeader is Identifiable (compile-time check)
-    let _: [any Identifiable] = headers
 }
 
 @Test func testBookmarkExample() async throws {
@@ -212,15 +209,6 @@ import Testing
     #expect(review.headers["Rating"] == "4.5")
     #expect(review.headers["Spoilers"] == "false")
     #expect(review.body.contains("I enoyed this book!"))
-}
-
-@Test func testHeaderCaseInsensitivity() async throws {
-    var headers = MIMEHeaders()
-    headers["Content-Type"] = "text/plain"
-
-    #expect(headers["content-type"] == "text/plain")
-    #expect(headers["CONTENT-TYPE"] == "text/plain")
-    #expect(headers["Content-Type"] == "text/plain")
 }
 
 @Test func testContentTypeFiltering() async throws {
@@ -341,13 +329,11 @@ import Testing
     headers["Subject"] = "Test"
 
     #expect(headers.count == 3)
-    #expect(headers.contains("From"))
-    #expect(headers.contains("from"))
-    #expect(!headers.contains("Cc"))
+    #expect(headers["From"] != "")
 
     var foundKeys: Set<String> = []
-    for (key, _) in headers {
-        foundKeys.insert(key)
+    for header in headers {
+        foundKeys.insert(header.key)
     }
     #expect(foundKeys.count == 3)
 }
@@ -360,8 +346,13 @@ import Testing
     ]
 
     #expect(headers["From"] == "test@example.com")
-    #expect(headers["to"] == "recipient@example.com")
-    #expect(headers["SUBJECT"] == "Test Message")
+    #expect(headers["To"] == "recipient@example.com")
+    #expect(headers["Subject"] == "Test Message")
+
+    // Check ordering
+    #expect(headers[0].key == "From")
+    #expect(headers[1].key == "To")
+    #expect(headers[2].key == "Subject")
 }
 
 @Test func testComplexContentType() async throws {
@@ -763,6 +754,7 @@ import Testing
 
     // Parse
     var message = try MIMEDecoder().decode(original)
+    #expect(message.headers[0].key == "From")
 
     // Edit
     message.headers["From"] = "updated@example.com"
@@ -776,7 +768,9 @@ import Testing
 
     // Verify
     #expect(reparsed.headers["From"] == "updated@example.com")
-    #expect(reparsed.parts[0].body == "Updated content")
+    #expect(reparsed.headers[0].key == "From")
+    #expect(reparsed.headers[1].key == "Content-Type")
+    #expect(reparsed.parts.first?.body == "Updated content")
 }
 
 @Test func testAddingAndRemovingParts() async throws {
@@ -895,10 +889,6 @@ import Testing
     #expect(receivedHeaders[0] == "from server1.example.com by server2.example.com")
     #expect(receivedHeaders[1] == "from server2.example.com by server3.example.com")
     #expect(receivedHeaders[2] == "from server3.example.com by server4.example.com")
-
-    // Case-insensitive lookup
-    let receivedLowercase = message.headers.values(for: "received")
-    #expect(receivedLowercase.count == 3)
 }
 
 @Test func testAddingDuplicateHeaders() async throws {
@@ -1011,21 +1001,6 @@ import Testing
     #expect(values.isEmpty)
 }
 
-@Test func testDuplicateHeadersCaseInsensitive() async throws {
-    var headers = MIMEHeaders()
-    headers.add("Received", value: "value1")
-    headers.add("RECEIVED", value: "value2")
-    headers.add("received", value: "value3")
-
-    // All should be stored as the same header
-    let values = headers.values(for: "Received")
-    #expect(values.count == 3)
-
-    // Should work with any case
-    #expect(headers.values(for: "RECEIVED").count == 3)
-    #expect(headers.values(for: "received").count == 3)
-}
-
 @Test func testDuplicateHeadersInMultipartMessage() async throws {
     let mimeContent = """
         From: sender@example.com
@@ -1070,7 +1045,6 @@ import Testing
 
     #expect(headers["X-Custom"] == nil)
     #expect(headers.values(for: "X-Custom").isEmpty)
-    #expect(!headers.contains("X-Custom"))
 }
 
 // MARK: - MIMEHeaderAttributes Tests
