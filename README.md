@@ -276,6 +276,45 @@ print(part.headerAttributes("Content-Type")["charset"]) // "utf-8"
 print(part.headers["Custom-Header"])
 ```
 
+#### Iterating Headers in Order
+
+Headers are stored and decoded in the order they appear in the original MIME message. You can iterate through them using the `ordered` property, which returns an array of `MIMEHeader` values. Each `MIMEHeader` is `Identifiable`, making it perfect for SwiftUI `ForEach` loops:
+
+```swift
+let message = try MIMEDecoder().decode(mimeContent)
+
+// Iterate through headers in order
+for header in message.headers.ordered {
+    print("\(header.key): \(header.value)")
+}
+
+// Use in SwiftUI ForEach
+ForEach(message.headers.ordered) { header in
+    HStack {
+        Text(header.key)
+            .fontWeight(.semibold)
+        Text(header.value)
+    }
+}
+
+// Also works with Collection protocol
+let headerCount = message.headers.count
+for (key, value) in message.headers {
+    print("\(key): \(value)")
+}
+```
+
+The library preserves header order during parsing and encoding, ensuring round-trip consistency:
+
+```swift
+let original = try MIMEDecoder().decode(mimeContent)
+let encoded = MIMEEncoder().encode(original)
+let reparsed = try MIMEDecoder().decode(encoded)
+
+// Headers maintain their original order
+#expect(original.headers.keys == reparsed.headers.keys)
+```
+
 #### Working with Header Attributes
 
 Many MIME headers contain a primary value followed by semicolon-separated attributes (e.g., `Content-Type: text/plain; charset=utf-8; format=flowed`). The library provides convenient access to these attributes:

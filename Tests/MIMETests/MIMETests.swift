@@ -83,6 +83,42 @@ import Testing
     #expect(keys[5] == "Content-Type")
 }
 
+@Test func testOrderedHeadersForSwiftUI() async throws {
+    let mimeContent = """
+        From: sender@example.com
+        To: recipient@example.com
+        Date: Mon, 01 Jan 2024 12:00:00 -0800
+        Subject: Test Message
+        MIME-Version: 1.0
+        Content-Type: text/plain
+
+        Body content
+        """
+
+    let message = try MIMEDecoder().decode(mimeContent)
+
+    // Get ordered headers suitable for SwiftUI ForEach
+    let headers = message.headers.ordered
+
+    // Verify count and order
+    #expect(headers.count == 6)
+    #expect(headers[0].key == "From")
+    #expect(headers[0].value == "sender@example.com")
+    #expect(headers[1].key == "To")
+    #expect(headers[1].value == "recipient@example.com")
+    #expect(headers[2].key == "Date")
+    #expect(headers[3].key == "Subject")
+    #expect(headers[4].key == "MIME-Version")
+    #expect(headers[5].key == "Content-Type")
+
+    // Verify each header has a unique ID (important for SwiftUI ForEach)
+    let ids = Set(headers.map { $0.id })
+    #expect(ids.count == 6)
+
+    // Verify MIMEHeader is Identifiable (compile-time check)
+    let _: [any Identifiable] = headers
+}
+
 @Test func testBookmarkExample() async throws {
     let bookmarkContent = """
         From: Nathan Borror <zV6nZFTyrypSgXo1mxC02yg6PKeXv8gWpKWa1/AzAPw=>

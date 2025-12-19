@@ -220,14 +220,36 @@ public struct MIMEPart: Sendable, Identifiable {
 /// headers.add("Received", value: "from server2.example.com")
 /// let allReceived = headers.values(for: "Received")  // Both values
 /// ```
+/// Represents a single MIME header with its key and value.
+///
+/// This struct is `Identifiable` for use in SwiftUI `ForEach` loops,
+/// allowing headers to be iterated in the order they appear in the message.
+///
+/// ```swift
+/// ForEach(message.headers.ordered) { header in
+///     Text("\(header.key): \(header.value)")
+/// }
+/// ```
+public struct MIMEHeader: Sendable, Identifiable, Equatable {
+    public let id: UUID
+    public let key: String
+    public let value: String
+
+    public init(id: UUID = UUID(), key: String, value: String) {
+        self.id = id
+        self.key = key
+        self.value = value
+    }
+}
+
 public struct MIMEHeaders: Sendable, Equatable {
-    private var storage: [(key: String, originalKey: String, value: String)] = []
+    private var storage: [(id: UUID, key: String, originalKey: String, value: String)] = []
 
     public init() {}
 
     public init(_ dictionary: [String: String]) {
         for (key, value) in dictionary {
-            storage.append((key: key.lowercased(), originalKey: key, value: value))
+            storage.append((id: UUID(), key: key.lowercased(), originalKey: key, value: value))
         }
     }
 
@@ -247,12 +269,28 @@ public struct MIMEHeaders: Sendable, Equatable {
                 // Remove all existing headers with this name
                 storage.removeAll(where: { $0.key == lowercasedKey })
                 // Add the new header
-                storage.append((key: lowercasedKey, originalKey: key, value: newValue))
+                storage.append((id: UUID(), key: lowercasedKey, originalKey: key, value: newValue))
             } else {
                 // Remove all headers with this name
                 storage.removeAll(where: { $0.key == lowercasedKey })
             }
         }
+    }
+
+    /// Returns all headers as an array of `MIMEHeader` values in order.
+    ///
+    /// This property is useful for iterating over headers in SwiftUI `ForEach` loops,
+    /// as each header has a stable identity for list rendering.
+    ///
+    /// ```swift
+    /// ForEach(message.headers.ordered) { header in
+    ///     Text("\(header.key): \(header.value)")
+    /// }
+    /// ```
+    ///
+    /// - Returns: An array of `MIMEHeader` values preserving the original order
+    public var ordered: [MIMEHeader] {
+        storage.map { MIMEHeader(id: $0.id, key: $0.originalKey, value: $0.value) }
     }
 
     public var keys: [String] {
@@ -305,7 +343,7 @@ public struct MIMEHeaders: Sendable, Equatable {
     ///   - value: The header value to add
     public mutating func add(_ key: String, value: String) {
         let lowercasedKey = key.lowercased()
-        storage.append((key: lowercasedKey, originalKey: key, value: value))
+        storage.append((id: UUID(), key: lowercasedKey, originalKey: key, value: value))
     }
 
     /// Removes all headers with the given name.
@@ -323,6 +361,7 @@ public struct MIMEHeaders: Sendable, Equatable {
         return zip(lhs.storage, rhs.storage).allSatisfy { lhsElement, rhsElement in
             lhsElement.key == rhsElement.key && lhsElement.originalKey == rhsElement.originalKey
                 && lhsElement.value == rhsElement.value
+            // Note: We don't compare IDs because headers are equal if their keys and values match
         }
     }
 }
@@ -776,7 +815,7 @@ extension MIMEHeaders: ExpressibleByDictionaryLiteral {
 }
 
 extension MIMEHeaders: Collection {
-    public typealias Index = Array<(key: String, originalKey: String, value: String)>.Index
+    public typealias Index = Array<(id: UUID, key: String, originalKey: String, value: String)>.Index
     public typealias Element = (key: String, value: String)
 
     public var startIndex: Index { storage.startIndex }
@@ -791,6 +830,8 @@ extension MIMEHeaders: Collection {
         storage.index(after: i)
     }
 }
+
+extension MIMEHeaders: RandomAccessCollection {}
 
 extension MIMEHeaders: CustomStringConvertible {
     public var description: String {
