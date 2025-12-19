@@ -717,20 +717,19 @@ extension MIMEMessage {
     /// - Parameter value: The header value to search for (case-insensitive)
     /// - Returns: An array of matching parts
     public func parts(withHeader key: String, value: String) -> [MIMEPart] {
-        func searchParts(_ parts: [MIMEPart]) -> [MIMEPart] {
+        func findRecursive(_ parts: [MIMEPart]) -> [MIMEPart] {
             var result: [MIMEPart] = []
             for part in parts {
                 if part.headers[key]?.lowercased().contains(value.lowercased()) == true {
                     result.append(part)
                 }
-                // Recursively search nested parts
-                if !part.parts.isEmpty {
-                    result.append(contentsOf: searchParts(part.parts))
+                if !part.parts.isEmpty { // Recursively search nested parts
+                    result.append(contentsOf: findRecursive(part.parts))
                 }
             }
             return result
         }
-        return searchParts(parts)
+        return findRecursive(parts)
     }
 
     /// Find the first part with a specific header value.
@@ -746,21 +745,20 @@ extension MIMEMessage {
     /// - Parameter value: The header value to match (case-insensitive)
     /// - Returns: The first matching part, or nil if not found
     public func firstPart(withHeader key: String, value: String) -> MIMEPart? {
-        func searchParts(_ parts: [MIMEPart]) -> MIMEPart? {
+        func findRecursive(_ parts: [MIMEPart]) -> MIMEPart? {
             for part in parts {
                 if part.headers[key]?.lowercased().contains(value.lowercased()) == true {
                     return part
                 }
-                // Recursively search nested parts
-                if !part.parts.isEmpty {
-                    if let found = searchParts(part.parts) {
+                if !part.parts.isEmpty { // Recursively search nested parts
+                    if let found = findRecursive(part.parts) {
                         return found
                     }
                 }
             }
             return nil
         }
-        return searchParts(parts)
+        return findRecursive(parts)
     }
 
     /// Returns true if the message contains any parts with the specified header value.
@@ -772,71 +770,73 @@ extension MIMEMessage {
         firstPart(withHeader: key, value: value) != nil
     }
 
-    /// Find all parts with a specific content-disposition name.
+    /// Find all parts with a specific header attribute value.
     /// Searches recursively through nested parts.
     ///
     /// ```swift
-    /// let fooParts = message.parts(withContentDispositionName: "foo")
+    /// let fooParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "foo")
     /// ```
     ///
-    /// - Parameter name: The content-disposition name to search for (case-sensitive)
+    /// - Parameter withHeader: The header name to search for (case-sensitive)
+    /// - Parameter attribute: The attribute name to search for (case-sensitive)
+    /// - Parameter value: The attribute value to match for (case-sensitive)
     /// - Returns: An array of matching parts
-    public func parts(withContentDispositionName name: String) -> [MIMEPart] {
-        func searchParts(_ parts: [MIMEPart]) -> [MIMEPart] {
+    public func parts(withHeader header: String, attribute: String, value: String) -> [MIMEPart] {
+        func findRecursive(_ parts: [MIMEPart]) -> [MIMEPart] {
             var result: [MIMEPart] = []
             for part in parts {
-                let disposition = part.headerAttributes("Content-Disposition")
-                if disposition["name"] == name {
+                let header = part.headerAttributes(header)
+                if header[attribute] == value {
                     result.append(part)
                 }
-                // Recursively search nested parts
-                if !part.parts.isEmpty {
-                    result.append(contentsOf: searchParts(part.parts))
+                if !part.parts.isEmpty { // Recursively search nested parts
+                    result.append(contentsOf: findRecursive(part.parts))
                 }
             }
             return result
         }
-
-        return searchParts(parts)
+        return findRecursive(parts)
     }
 
-    /// Find the first part with a specific content-disposition name.
-    /// Returns the first part with the specified `name` attribute in the `Content-Disposition` header, searching recursively.
+    /// Find the first part with a specific header attribute value.
+    /// Returns the first part with the specified header attribute value, searching recursively.
     ///
     /// ```swift
-    /// if let avatarPart = message.firstPart(withContentDispositionName: "avatar") {
+    /// if let avatarPart = message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "foo") {
     ///     print(avatarPart.body)
     /// }
     /// ```
     ///
-    /// - Parameter name: The name to match in Content-Disposition
+    /// - Parameter withHeader: The header name to search for (case-sensitive)
+    /// - Parameter attribute: The attribute name to search for (case-sensitive)
+    /// - Parameter value: The attribute value to match for (case-sensitive)
     /// - Returns: The first matching part, or nil if not found
-    public func firstPart(withContentDispositionName name: String) -> MIMEPart? {
-        func searchParts(_ parts: [MIMEPart]) -> MIMEPart? {
+    public func firstPart(withHeader header: String, attribute: String, value: String) -> MIMEPart? {
+        func findRecursive(_ parts: [MIMEPart]) -> MIMEPart? {
             for part in parts {
-                let disposition = part.headerAttributes("Content-Disposition")
-                if disposition["name"] == name {
+                let header = part.headerAttributes(header)
+                if header[attribute] == value {
                     return part
                 }
-                // Recursively search nested parts
-                if !part.parts.isEmpty {
-                    if let found = searchParts(part.parts) {
+                if !part.parts.isEmpty { // Recursively search nested parts
+                    if let found = findRecursive(part.parts) {
                         return found
                     }
                 }
             }
             return nil
         }
-
-        return searchParts(parts)
+        return findRecursive(parts)
     }
 
-    /// Returns true if the message contains any parts with the specified content-disposition name.
+    /// Returns true if the message contains any parts with the specified header attribute value.
     ///
-    /// - Parameter name: The content-disposition name to check for (case-sensitive)
+    /// - Parameter withHeader: The header name to search for (case-sensitive)
+    /// - Parameter attribute: The attribute name to search for (case-sensitive)
+    /// - Parameter value: The attribute value to match for (case-sensitive)
     /// - Returns: True if at least one part has the specified content-disposition name
-    public func hasPart(withContentDispositionName name: String) -> Bool {
-        firstPart(withContentDispositionName: name) != nil
+    public func hasPart(withHeader header: String, attribute: String, value: String) -> Bool {
+        firstPart(withHeader: header, attribute: attribute, value: value) != nil
     }
 }
 

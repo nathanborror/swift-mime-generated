@@ -116,6 +116,8 @@ func attributesNonExistentParameter() async throws {
     #expect(attrs["nonexistent"] == nil)
 }
 
+// MARK: Querying Attributes
+
 @Test("Content-Disposition name filtering")
 func contentDispositionName() async throws {
     let mimeContent = """
@@ -141,16 +143,16 @@ func contentDispositionName() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let fooParts = message.parts(withContentDispositionName: "foo")
+    let fooParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "foo")
     #expect(fooParts.count == 2)
     #expect(fooParts[0].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is foo")
     #expect(fooParts[1].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is another foo")
 
-    let barParts = message.parts(withContentDispositionName: "bar")
+    let barParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "bar")
     #expect(barParts.count == 1)
     #expect(barParts[0].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is bar")
 
-    let bazParts = message.parts(withContentDispositionName: "baz")
+    let bazParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "baz")
     #expect(bazParts.count == 0)
 }
 
@@ -170,9 +172,9 @@ func contentDispositionNameCaseSensitive() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Names should be case-sensitive
-    #expect(message.firstPart(withContentDispositionName: "MyFile") != nil)
-    #expect(message.firstPart(withContentDispositionName: "myfile") == nil)
-    #expect(message.firstPart(withContentDispositionName: "MYFILE") == nil)
+    #expect(message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "MyFile") != nil)
+    #expect(message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "myfile") == nil)
+    #expect(message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "MYFILE") == nil)
 }
 
 @Test("Content-Disposition filename and name")
@@ -195,11 +197,11 @@ func contentDispositionWithFilenameAndName() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let textPart = message.firstPart(withContentDispositionName: "textfile")
+    let textPart = message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "textfile")
     #expect(textPart != nil)
     #expect(textPart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "Text content")
 
     // Part without name attribute should not match
-    let imagePart = message.firstPart(withContentDispositionName: "photo.png")
+    let imagePart = message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "photo.png")
     #expect(imagePart == nil)
 }
