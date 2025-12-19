@@ -20,23 +20,23 @@ func headerOrderPreserved() async throws {
 
     let keys = message.parts[0].headers.map { $0.key }
     #expect(keys.count == 6)
-    #expect(keys[0] == "From")
-    #expect(keys[1] == "To")
-    #expect(keys[2] == "Date")
-    #expect(keys[3] == "Subject")
-    #expect(keys[4] == "MIME-Version")
-    #expect(keys[5] == "Content-Type")
+    #expect(keys[0] == .From)
+    #expect(keys[1] == .To)
+    #expect(keys[2] == .Date)
+    #expect(keys[3] == .Subject)
+    #expect(keys[4] == .MIMEVersion)
+    #expect(keys[5] == .ContentType)
 }
 
 @Test("Header order preservation after encoding")
 func headerOrderEncoding() async throws {
     var headers = MIMEHeaders()
-    headers["From"] = "sender@example.com"
-    headers["To"] = "recipient@example.com"
-    headers["Date"] = "Mon, 01 Jan 2024 12:00:00 -0800"
-    headers["Subject"] = "Test Message"
-    headers["MIME-Version"] = "1.0"
-    headers["Content-Type"] = "text/plain"
+    headers[.From] = "sender@example.com"
+    headers[.To] = "recipient@example.com"
+    headers[.Date] = "Mon, 01 Jan 2024 12:00:00 -0800"
+    headers[.Subject] = "Test Message"
+    headers[.MIMEVersion] = "1.0"
+    headers[.ContentType] = "text/plain"
 
     let message = MIMEMessage([.init(headers: headers, body: "")])
     let encoded = MIMEEncoder().encode(message)
@@ -44,12 +44,12 @@ func headerOrderEncoding() async throws {
 
     let keys = reparsed.parts[0].headers.map { $0.key }
     #expect(keys.count == 6)
-    #expect(keys[0] == "From")
-    #expect(keys[1] == "To")
-    #expect(keys[2] == "Date")
-    #expect(keys[3] == "Subject")
-    #expect(keys[4] == "MIME-Version")
-    #expect(keys[5] == "Content-Type")
+    #expect(keys[0] == .From)
+    #expect(keys[1] == .To)
+    #expect(keys[2] == .Date)
+    #expect(keys[3] == .Subject)
+    #expect(keys[4] == .MIMEVersion)
+    #expect(keys[5] == .ContentType)
 }
 
 @Test("Headers on multiple lines")
@@ -68,20 +68,20 @@ func headerOnMultipleLines() async throws {
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    #expect(message.parts[0].headers["From"]?.contains("Very Long Name") == true)
-    #expect(message.parts[0].headers["From"]?.contains("very.long.email@example.com") == true)
+    #expect(message.parts[0].headers[.From]?.contains("Very Long Name") == true)
+    #expect(message.parts[0].headers[.From]?.contains("very.long.email@example.com") == true)
     #expect(message.parts.count == 2)
 }
 
 @Test("Header collection")
 func headerCollection() async throws {
     var headers = MIMEHeaders()
-    headers["From"] = "test@example.com"
-    headers["To"] = "recipient@example.com"
-    headers["Subject"] = "Test"
+    headers[.From] = "test@example.com"
+    headers[.To] = "recipient@example.com"
+    headers[.Subject] = "Test"
 
     #expect(headers.count == 3)
-    #expect(headers["From"] != "")
+    #expect(headers[.From] != "")
 
     var foundKeys: Set<String> = []
     for header in headers {
@@ -90,9 +90,9 @@ func headerCollection() async throws {
     #expect(foundKeys.count == 3)
 
     // Check ordering
-    #expect(headers[0].key == "From")
-    #expect(headers[1].key == "To")
-    #expect(headers[2].key == "Subject")
+    #expect(headers[0].key == .From)
+    #expect(headers[1].key == .To)
+    #expect(headers[2].key == .Subject)
 }
 
 @Test("Header decoding duplicates")
@@ -125,7 +125,7 @@ func headerDecodingDuplicates() async throws {
 @Test("Header adding duplicates")
 func headerAddingDuplicate() async throws {
     var headers = MIMEHeaders()
-    headers["From"] = "sender@example.com"
+    headers[.From] = "sender@example.com"
 
     // Add multiple Received headers
     headers.add("Received", value: "from server1.example.com")
@@ -169,7 +169,7 @@ func headerRemoveAllDuplicates() async throws {
     var headers = MIMEHeaders()
     headers.add("X-Custom", value: "value1")
     headers.add("X-Custom", value: "value2")
-    headers.add("From", value: "test@example.com")
+    headers.add(.From, value: "test@example.com")
 
     #expect(headers.count == 3)
 
@@ -177,7 +177,7 @@ func headerRemoveAllDuplicates() async throws {
     headers.removeAll("X-Custom")
 
     #expect(headers.count == 1)
-    #expect(headers["From"] == "test@example.com")
+    #expect(headers[.From] == "test@example.com")
     #expect(headers["X-Custom"] == nil)
     #expect(headers.values(for: "X-Custom").isEmpty)
 }
@@ -185,7 +185,7 @@ func headerRemoveAllDuplicates() async throws {
 @Test("Header encoding duplicates")
 func headerEncodingDuplicates() async throws {
     var headers = MIMEHeaders()
-    headers["From"] = "sender@example.com"
+    headers[.From] = "sender@example.com"
     headers.add("Received", value: "from server1.example.com")
     headers.add("Received", value: "from server2.example.com")
 
@@ -301,9 +301,9 @@ func headerAttributes() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts[0].headerAttributes("Content-Type")["boundary"] == "test")
-    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
-    #expect(message.parts[1].headerAttributes("Content-Type")["charset"] == "utf-8")
-    #expect(message.parts[2].headerAttributes("Content-Type")["charset"] == "iso-8859-1")
-    #expect(message.parts[3].headerAttributes("Content-Type")["charset"] == nil)
+    #expect(message.parts[0].headerAttributes(.ContentType)["boundary"] == "test")
+    #expect(message.parts[0].headerAttributes(.ContentType)["charset"] == "utf-8")
+    #expect(message.parts[1].headerAttributes(.ContentType)["charset"] == "utf-8")
+    #expect(message.parts[2].headerAttributes(.ContentType)["charset"] == "iso-8859-1")
+    #expect(message.parts[3].headerAttributes(.ContentType)["charset"] == nil)
 }

@@ -21,8 +21,8 @@ func decodingTextPlain() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].headerAttributes("Content-Type").value == "text/plain")
-    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
+    #expect(message.parts[0].headerAttributes(.ContentType).value == "text/plain")
+    #expect(message.parts[0].headerAttributes(.ContentType)["charset"] == "utf-8")
     #expect(message.parts[0].body.contains("This is a simple text message"))
 }
 
@@ -43,7 +43,7 @@ func decodingTextHTML() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].headers["Content-Type"] == "text/html")
+    #expect(message.parts[0].headers[.ContentType] == "text/html")
     #expect(message.parts[0].body.contains("<h1>Hello World</h1>"))
     #expect(message.parts[0].body.contains("<p>This is an HTML message.</p>"))
 }
@@ -64,7 +64,7 @@ func decodingApplicationJSON() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].headers["Content-Type"] == "application/json")
+    #expect(message.parts[0].headers[.ContentType] == "application/json")
     #expect(message.parts[0].body.contains("\"name\": \"John Doe\""))
     #expect(message.parts[0].body.contains("\"active\": true"))
 }
@@ -83,7 +83,7 @@ func decodingMissingContentType() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     #expect(message.parts.count == 1)
-    #expect(message.parts[0].headers["Content-Type"] == nil)
+    #expect(message.parts[0].headers[.ContentType] == nil)
     #expect(message.parts[0].body.contains("This message has no Content-Type header"))
 }
 
@@ -102,10 +102,10 @@ func decodingRoundTrip() async throws {
 
     // Parse
     var message = try MIMEDecoder().decode(original)
-    #expect(message.parts[0].headers[0].key == "From")
+    #expect(message.parts[0].headers[0].key == .From)
 
     // Edit
-    message.parts[0].headers["From"] = "updated@example.com"
+    message.parts[0].headers[.From] = "updated@example.com"
     message.parts[1].body = "Updated content"
 
     // Encode
@@ -115,9 +115,9 @@ func decodingRoundTrip() async throws {
     let reparsed = try MIMEDecoder().decode(encoded)
 
     // Verify
-    #expect(reparsed.parts[0].headers["From"] == "updated@example.com")
-    #expect(reparsed.parts[0].headers[0].key == "From")
-    #expect(reparsed.parts[0].headers[1].key == "Content-Type")
+    #expect(reparsed.parts[0].headers[.From] == "updated@example.com")
+    #expect(reparsed.parts[0].headers[0].key == .From)
+    #expect(reparsed.parts[0].headers[1].key == .ContentType)
     #expect(reparsed.parts[1].body == "Updated content")
 }
 
@@ -145,7 +145,7 @@ func decodingData() async throws {
 
     let message = try MIMEDecoder().decode(data)
 
-    #expect(message.parts[0].headers["From"] == "Test User <test@example.com>")
+    #expect(message.parts[0].headers[.From] == "Test User <test@example.com>")
     #expect(message.parts.count == 3)
     #expect(message.parts[1].body == "Hello from Data!")
     #expect(message.parts[2].body == "<p>HTML from Data</p>")
@@ -236,7 +236,7 @@ func encodingMultipart() async throws {
 @Test("Encoding part")
 func encodingPart() async throws {
     var headers = MIMEHeaders()
-    headers["Content-Type"] = "text/plain"
+    headers[.ContentType] = "text/plain"
     headers["X-Custom"] = "value"
 
     let part = MIMEPart(headers: headers, body: "Test content")
@@ -280,10 +280,10 @@ func partHeaderEditing() async throws {
     var message = try MIMEDecoder().decode(mimeContent)
 
     // Edit part headers
-    message.parts[0].headers["Content-Type"] = "text/html"
+    message.parts[0].headers[.ContentType] = "text/html"
     message.parts[0].headers["X-Custom"] = "value"
 
-    #expect(message.parts[0].headers["Content-Type"] == "text/html")
+    #expect(message.parts[0].headers[.ContentType] == "text/html")
     #expect(message.parts[0].headers["X-Custom"] == "value")
 }
 
@@ -305,7 +305,7 @@ func partsAddingAndRemoving() async throws {
 
     // Add a new part
     var newHeaders = MIMEHeaders()
-    newHeaders["Content-Type"] = "text/html"
+    newHeaders[.ContentType] = "text/html"
     let newPart = MIMEPart(headers: newHeaders, body: "<p>New part</p>")
     message.parts.append(newPart)
 
@@ -343,13 +343,13 @@ func multipartDecoding() async throws {
     let message = try MIMEDecoder().decode(content)
 
     #expect(message.parts.count == 3)
-    #expect(message.parts[0].headers["From"] == "Test User <test@example.com>")
-    #expect(message.parts[0].headers["MIME-Version"] == "1.0")
+    #expect(message.parts[0].headers[.From] == "Test User <test@example.com>")
+    #expect(message.parts[0].headers[.MIMEVersion] == "1.0")
 
-    #expect(message.parts[1].headers["Content-Type"] == "text/plain")
+    #expect(message.parts[1].headers[.ContentType] == "text/plain")
     #expect(message.parts[1].body == "Hello, World!")
 
-    #expect(message.parts[2].headers["Content-Type"] == "text/html")
+    #expect(message.parts[2].headers[.ContentType] == "text/html")
     #expect(message.parts[2].body == "<h1>Hello, World!</h1>")
 }
 
@@ -409,64 +409,64 @@ func multipartMultipleBoundaries() async throws {
 
     // First part is the envelope with headers
     let envelope = message.parts[0]
-    #expect(envelope.headers["From"] == "Test User <test@example.com>")
-    #expect(envelope.headers["Content-Type"]?.contains("multipart/mixed") == true)
+    #expect(envelope.headers[.From] == "Test User <test@example.com>")
+    #expect(envelope.headers[.ContentType]?.contains("multipart/mixed") == true)
 
     // Second part should be multipart/alternative with nested parts
     let alternativePart = message.parts[1]
-    #expect(alternativePart.headers["Content-Type"]?.contains("multipart/alternative") == true)
+    #expect(alternativePart.headers[.ContentType]?.contains("multipart/alternative") == true)
     #expect(alternativePart.parts.count == 2)  // text/plain + multipart/related
 
     // Verify nested text/plain part
     let plainPart = alternativePart.parts[0]
-    #expect(plainPart.headers["Content-Type"]?.contains("text/plain") == true)
+    #expect(plainPart.headers[.ContentType]?.contains("text/plain") == true)
     #expect(plainPart.body.contains("Hello, World!"))
     #expect(plainPart.body.contains("plain text version"))
     #expect(plainPart.parts.isEmpty)  // No nested parts
 
     // Verify nested multipart/related part
     let relatedPart = alternativePart.parts[1]
-    #expect(relatedPart.headers["Content-Type"]?.contains("multipart/related") == true)
+    #expect(relatedPart.headers[.ContentType]?.contains("multipart/related") == true)
     #expect(relatedPart.parts.count == 2)  // text/html + image/png
 
     // Verify deeply nested HTML part
     let htmlPart = relatedPart.parts[0]
-    #expect(htmlPart.headers["Content-Type"]?.contains("text/html") == true)
+    #expect(htmlPart.headers[.ContentType]?.contains("text/html") == true)
     #expect(htmlPart.body.contains("<h1>Hello, World!</h1>"))
     #expect(htmlPart.body.contains("<img src=\"cid:image001\""))
     #expect(htmlPart.parts.isEmpty)  // No nested parts
 
     // Verify deeply nested image part
     let imagePart = relatedPart.parts[1]
-    #expect(imagePart.headers["Content-Type"]?.contains("image/png") == true)
-    #expect(imagePart.headers["Content-ID"] == "<image001>")
+    #expect(imagePart.headers[.ContentType]?.contains("image/png") == true)
+    #expect(imagePart.headers[.ContentID] == "<image001>")
     #expect(imagePart.body.contains("iVBORw0KGgo"))
     #expect(imagePart.parts.isEmpty)  // No nested parts
 
     // Verify PDF attachment at top level
     let pdfPart = message.parts[2]
-    #expect(pdfPart.headers["Content-Type"]?.contains("application/pdf") == true)
-    #expect(pdfPart.headers["Content-Disposition"]?.contains("attachment") == true)
+    #expect(pdfPart.headers[.ContentType]?.contains("application/pdf") == true)
+    #expect(pdfPart.headers[.ContentDisposition]?.contains("attachment") == true)
     #expect(pdfPart.body.contains("JVBERi0"))
     #expect(pdfPart.parts.isEmpty)  // No nested parts
 
     // Test recursive search functions
-    let allPlainParts = message.parts(withHeader: "Content-Type", value: "text/plain")
+    let allPlainParts = message.parts(withHeader: .ContentType, value: "text/plain")
     #expect(allPlainParts.count == 1)
     #expect(allPlainParts[0].body.contains("plain text version"))
 
-    let allHtmlParts = message.parts(withHeader: "Content-Type", value: "text/html")
+    let allHtmlParts = message.parts(withHeader: .ContentType, value: "text/html")
     #expect(allHtmlParts.count == 1)
     #expect(allHtmlParts[0].body.contains("<h1>Hello, World!</h1>"))
 
     // Test firstPart recursive search
-    if let foundPlainPart = message.firstPart(withHeader: "Content-Type", value: "text/plain") {
+    if let foundPlainPart = message.firstPart(withHeader: .ContentType, value: "text/plain") {
         #expect(foundPlainPart.body.contains("plain text version"))
     } else {
         Issue.record("Should find text/plain part")
     }
 
-    if let foundHtmlPart = message.firstPart(withHeader: "Content-Type", value: "text/html") {
+    if let foundHtmlPart = message.firstPart(withHeader: .ContentType, value: "text/html") {
         #expect(foundHtmlPart.body.contains("<h1>Hello, World!</h1>"))
     } else {
         Issue.record("Should find text/html part")
@@ -524,17 +524,17 @@ func multipartBookmarkExample() async throws {
 
     // Test main headers
     #expect(
-        message.parts[0].headers["From"]
+        message.parts[0].headers[.From]
             == "Nathan Borror <zV6nZFTyrypSgXo1mxC02yg6PKeXv8gWpKWa1/AzAPw=>")
-    #expect(message.parts[0].headers["Date"] == "Wed, 15 Oct 2025 18:42:00 -0700")
-    #expect(message.parts[0].headers["MIME-Version"] == "1.0")
+    #expect(message.parts[0].headers[.Date] == "Wed, 15 Oct 2025 18:42:00 -0700")
+    #expect(message.parts[0].headers[.MIMEVersion] == "1.0")
 
     // Test parts count
     #expect(message.parts.count == 6)
 
     // Test book-info part
     let bookInfo = message.parts[1]
-    #expect(bookInfo.headers["Content-Type"] == "text/book-info")
+    #expect(bookInfo.headers[.ContentType] == "text/book-info")
     #expect(bookInfo.headers["Title"] == "Why Greatness Cannot Be Planned")
     #expect(bookInfo.headers["Subtitle"] == "The Myth of the Objective")
     #expect(bookInfo.headers["Authors"] == "Kenneth O. Stanley, Joel Lehman")
@@ -545,26 +545,26 @@ func multipartBookmarkExample() async throws {
 
     // Test quote part
     let quote = message.parts[2]
-    #expect(quote.headerAttributes("Content-Type").value == "text/quote")
+    #expect(quote.headerAttributes(.ContentType).value == "text/quote")
     #expect(quote.headers["Page"] == "10")
-    #expect(quote.headers["Date"] == "Thu, 29 May 2025 16:20:00 -0700")
+    #expect(quote.headers[.Date] == "Thu, 29 May 2025 16:20:00 -0700")
     #expect(quote.body.contains("Sometimes the best way to achieve something great"))
 
     // Test note part
     let note = message.parts[3]
-    #expect(note.headerAttributes("Content-Type").value == "text/note")
+    #expect(note.headerAttributes(.ContentType).value == "text/note")
     #expect(note.headers["Page"] == "10")
     #expect(note.body.contains("very cathartic"))
 
     // Test progress part
     let progress = message.parts[4]
-    #expect(progress.headers["Content-Type"] == "text/progress")
+    #expect(progress.headers[.ContentType] == "text/progress")
     #expect(progress.headers["Page"] == "65")
     #expect(progress.body.isEmpty)
 
     // Test review part
     let review = message.parts[5]
-    #expect(review.headerAttributes("Content-Type").value == "text/review")
+    #expect(review.headerAttributes(.ContentType).value == "text/review")
     #expect(review.headers["Rating"] == "4.5")
     #expect(review.headers["Spoilers"] == "false")
     #expect(review.body.contains("I enoyed this book!"))
@@ -593,12 +593,12 @@ func multipartContentTypeFiltering() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let plainParts = message.parts(withHeader: "Content-Type", value: "text/plain")
+    let plainParts = message.parts(withHeader: .ContentType, value: "text/plain")
     #expect(plainParts.count == 2)
     #expect(plainParts[0].body == "Plain text 1")
     #expect(plainParts[1].body == "Plain text 2")
 
-    let htmlPart = message.firstPart(withHeader: "Content-Type", value: "text/html")
+    let htmlPart = message.firstPart(withHeader: .ContentType, value: "text/html")
     #expect(htmlPart != nil)
     #expect(htmlPart?.body == "<p>HTML</p>")
 }
@@ -680,10 +680,10 @@ func multipartPartChecking() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.hasPart(withHeader: "Content-Type", value: "text/plain"))
-    #expect(message.hasPart(withHeader: "Content-Type", value: "text/html"))
-    #expect(message.hasPart(withHeader: "Content-Type", value: "application/json") == false)
-    #expect(message.hasPart(withHeader: "Content-Type", value: "TEXT/PLAIN"))  // Case insensitive
+    #expect(message.hasPart(withHeader: .ContentType, value: "text/plain"))
+    #expect(message.hasPart(withHeader: .ContentType, value: "text/html"))
+    #expect(message.hasPart(withHeader: .ContentType, value: "application/json") == false)
+    #expect(message.hasPart(withHeader: .ContentType, value: "TEXT/PLAIN"))  // Case insensitive
 }
 
 // MARK: Multipart Nested
@@ -692,19 +692,19 @@ func multipartPartChecking() async throws {
 func multipartNestedRoundTrip() async throws {
     // Create a nested multipart structure programmatically
     var envelopeHeaders = MIMEHeaders()
-    envelopeHeaders["From"] = "test@example.com"
-    envelopeHeaders["Content-Type"] = "multipart/mixed; boundary=\"outer\""
+    envelopeHeaders[.From] = "test@example.com"
+    envelopeHeaders[.ContentType] = "multipart/mixed; boundary=\"outer\""
 
     // Create nested multipart/alternative part
     var alternativeHeaders = MIMEHeaders()
-    alternativeHeaders["Content-Type"] = "multipart/alternative; boundary=\"inner\""
+    alternativeHeaders[.ContentType] = "multipart/alternative; boundary=\"inner\""
 
     var plainHeaders = MIMEHeaders()
-    plainHeaders["Content-Type"] = "text/plain"
+    plainHeaders[.ContentType] = "text/plain"
     let plainPart = MIMEPart(headers: plainHeaders, body: "Plain text version", parts: [])
 
     var htmlHeaders = MIMEHeaders()
-    htmlHeaders["Content-Type"] = "text/html"
+    htmlHeaders[.ContentType] = "text/html"
     let htmlPart = MIMEPart(headers: htmlHeaders, body: "<p>HTML version</p>", parts: [])
 
     let alternativePart = MIMEPart(
@@ -712,8 +712,8 @@ func multipartNestedRoundTrip() async throws {
 
     // Create attachment part
     var attachmentHeaders = MIMEHeaders()
-    attachmentHeaders["Content-Type"] = "application/pdf"
-    attachmentHeaders["Content-Disposition"] = "attachment; filename=\"doc.pdf\""
+    attachmentHeaders[.ContentType] = "application/pdf"
+    attachmentHeaders[.ContentDisposition] = "attachment; filename=\"doc.pdf\""
     let attachmentPart = MIMEPart(headers: attachmentHeaders, body: "PDF content here", parts: [])
 
     let envelope = MIMEPart(headers: envelopeHeaders, body: "", parts: [])
@@ -731,34 +731,34 @@ func multipartNestedRoundTrip() async throws {
     #expect(decoded.parts.count == 3)  // envelope + alternative + attachment
 
     // Check envelope
-    #expect(decoded.parts[0].headers["From"] == "test@example.com")
+    #expect(decoded.parts[0].headers[.From] == "test@example.com")
 
     // Check nested multipart/alternative
     let decodedAlternative = decoded.parts[1]
-    #expect(decodedAlternative.headers["Content-Type"]?.contains("multipart/alternative") == true)
+    #expect(decodedAlternative.headers[.ContentType]?.contains("multipart/alternative") == true)
     #expect(decodedAlternative.parts.count == 2)
 
     // Check nested plain text
     let decodedPlain = decodedAlternative.parts[0]
-    #expect(decodedPlain.headers["Content-Type"]?.contains("text/plain") == true)
+    #expect(decodedPlain.headers[.ContentType]?.contains("text/plain") == true)
     #expect(decodedPlain.body == "Plain text version")
     #expect(decodedPlain.parts.isEmpty)
 
     // Check nested HTML
     let decodedHtml = decodedAlternative.parts[1]
-    #expect(decodedHtml.headers["Content-Type"]?.contains("text/html") == true)
+    #expect(decodedHtml.headers[.ContentType]?.contains("text/html") == true)
     #expect(decodedHtml.body == "<p>HTML version</p>")
     #expect(decodedHtml.parts.isEmpty)
 
     // Check attachment
     let decodedAttachment = decoded.parts[2]
-    #expect(decodedAttachment.headers["Content-Type"]?.contains("application/pdf") == true)
+    #expect(decodedAttachment.headers[.ContentType]?.contains("application/pdf") == true)
     #expect(decodedAttachment.body == "PDF content here")
     #expect(decodedAttachment.parts.isEmpty)
 
     // Test recursive search still works
-    #expect(decoded.firstPart(withHeader: "Content-Type", value: "text/plain")?.body == "Plain text version")
-    #expect(decoded.firstPart(withHeader: "Content-Type", value: "text/html")?.body == "<p>HTML version</p>")
+    #expect(decoded.firstPart(withHeader: .ContentType, value: "text/plain")?.body == "Plain text version")
+    #expect(decoded.firstPart(withHeader: .ContentType, value: "text/html")?.body == "<p>HTML version</p>")
 }
 
 @Test("Multipart nested programmatic creation")
@@ -767,10 +767,10 @@ func multipartNestedProgrammaticCreation() async throws {
 
     // Level 3: Create multipart/related with HTML and image
     var relatedHeaders = MIMEHeaders()
-    relatedHeaders["Content-Type"] = "multipart/related; boundary=\"related-123\""
+    relatedHeaders[.ContentType] = "multipart/related; boundary=\"related-123\""
 
     var htmlHeaders = MIMEHeaders()
-    htmlHeaders["Content-Type"] = "text/html; charset=utf-8"
+    htmlHeaders[.ContentType] = "text/html; charset=utf-8"
     let htmlPart = MIMEPart(
         headers: htmlHeaders,
         body: "<html><body><img src=\"cid:logo\"></body></html>",
@@ -778,8 +778,8 @@ func multipartNestedProgrammaticCreation() async throws {
     )
 
     var imageHeaders = MIMEHeaders()
-    imageHeaders["Content-Type"] = "image/png"
-    imageHeaders["Content-ID"] = "<logo>"
+    imageHeaders[.ContentType] = "image/png"
+    imageHeaders[.ContentID] = "<logo>"
     let imagePart = MIMEPart(headers: imageHeaders, body: "base64imagedata", parts: [])
 
     let relatedPart = MIMEPart(
@@ -790,10 +790,10 @@ func multipartNestedProgrammaticCreation() async throws {
 
     // Level 2: Create multipart/alternative with plain text and multipart/related
     var altHeaders = MIMEHeaders()
-    altHeaders["Content-Type"] = "multipart/alternative; boundary=\"alt-456\""
+    altHeaders[.ContentType] = "multipart/alternative; boundary=\"alt-456\""
 
     var plainHeaders = MIMEHeaders()
-    plainHeaders["Content-Type"] = "text/plain"
+    plainHeaders[.ContentType] = "text/plain"
     let plainPart = MIMEPart(headers: plainHeaders, body: "Plain text fallback", parts: [])
 
     let altPart = MIMEPart(
@@ -804,12 +804,12 @@ func multipartNestedProgrammaticCreation() async throws {
 
     // Level 1: Create multipart/mixed with alternative and attachment
     var mixedHeaders = MIMEHeaders()
-    mixedHeaders["From"] = "sender@example.com"
-    mixedHeaders["Content-Type"] = "multipart/mixed; boundary=\"mixed-789\""
+    mixedHeaders[.From] = "sender@example.com"
+    mixedHeaders[.ContentType] = "multipart/mixed; boundary=\"mixed-789\""
 
     var attachHeaders = MIMEHeaders()
-    attachHeaders["Content-Type"] = "application/zip"
-    attachHeaders["Content-Disposition"] = "attachment; filename=\"archive.zip\""
+    attachHeaders[.ContentType] = "application/zip"
+    attachHeaders[.ContentDisposition] = "attachment; filename=\"archive.zip\""
     let attachPart = MIMEPart(headers: attachHeaders, body: "zipdata", parts: [])
 
     let envelope = MIMEPart(headers: mixedHeaders, body: "", parts: [])
@@ -821,31 +821,31 @@ func multipartNestedProgrammaticCreation() async throws {
     // Verify alternative part has 2 nested parts
     let decodedAlt = message.parts[1]
     #expect(decodedAlt.parts.count == 2)
-    #expect(decodedAlt.parts[0].headers["Content-Type"]?.contains("text/plain") == true)
-    #expect(decodedAlt.parts[1].headers["Content-Type"]?.contains("multipart/related") == true)
+    #expect(decodedAlt.parts[0].headers[.ContentType]?.contains("text/plain") == true)
+    #expect(decodedAlt.parts[1].headers[.ContentType]?.contains("multipart/related") == true)
 
     // Verify related part has 2 nested parts (HTML and image)
     let decodedRelated = decodedAlt.parts[1]
     #expect(decodedRelated.parts.count == 2)
-    #expect(decodedRelated.parts[0].headers["Content-Type"]?.contains("text/html") == true)
+    #expect(decodedRelated.parts[0].headers[.ContentType]?.contains("text/html") == true)
     #expect(decodedRelated.parts[0].body.contains("<img src=\"cid:logo\">"))
-    #expect(decodedRelated.parts[1].headers["Content-Type"]?.contains("image/png") == true)
-    #expect(decodedRelated.parts[1].headers["Content-ID"] == "<logo>")
+    #expect(decodedRelated.parts[1].headers[.ContentType]?.contains("image/png") == true)
+    #expect(decodedRelated.parts[1].headers[.ContentID] == "<logo>")
 
     // Verify attachment
-    #expect(message.parts[2].headers["Content-Type"]?.contains("application/zip") == true)
+    #expect(message.parts[2].headers[.ContentType]?.contains("application/zip") == true)
 
     // Test recursive search finds deeply nested parts
-    #expect(message.firstPart(withHeader: "Content-Type", value: "text/plain")?.body == "Plain text fallback")
+    #expect(message.firstPart(withHeader: .ContentType, value: "text/plain")?.body == "Plain text fallback")
     #expect(
-        message.firstPart(withHeader: "Content-Type", value: "text/html")?.body.contains("<img src=\"cid:logo\">")
+        message.firstPart(withHeader: .ContentType, value: "text/html")?.body.contains("<img src=\"cid:logo\">")
             == true)
-    #expect(message.firstPart(withHeader: "Content-Type", value: "image/png")?.body == "base64imagedata")
+    #expect(message.firstPart(withHeader: .ContentType, value: "image/png")?.body == "base64imagedata")
 
     // Test that all parts of each type are found
-    #expect(message.parts(withHeader: "Content-Type", value: "text/plain").count == 1)
-    #expect(message.parts(withHeader: "Content-Type", value: "text/html").count == 1)
-    #expect(message.parts(withHeader: "Content-Type", value: "image/png").count == 1)
+    #expect(message.parts(withHeader: .ContentType, value: "text/plain").count == 1)
+    #expect(message.parts(withHeader: .ContentType, value: "text/html").count == 1)
+    #expect(message.parts(withHeader: .ContentType, value: "image/png").count == 1)
 
     // Encode and decode to verify round-trip
     let encoder = MIMEEncoder()
@@ -855,8 +855,8 @@ func multipartNestedProgrammaticCreation() async throws {
 
     // Verify decoded structure matches original
     #expect(
-        decoded.firstPart(withHeader: "Content-Type", value: "text/html")?.body.contains("<img src=\"cid:logo\">")
+        decoded.firstPart(withHeader: .ContentType, value: "text/html")?.body.contains("<img src=\"cid:logo\">")
             == true)
-    #expect(decoded.firstPart(withHeader: "Content-Type", value: "image/png")?.headers["Content-ID"] == "<logo>")
+    #expect(decoded.firstPart(withHeader: .ContentType, value: "image/png")?.headers[.ContentID] == "<logo>")
 }
 

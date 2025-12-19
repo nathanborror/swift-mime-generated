@@ -433,7 +433,7 @@ public struct MIMEDecoder {
         let bodyContent = lines[currentLine...].joined(separator: "\n")
 
         // Extract boundary from Content-Type header
-        if let boundary = extractBoundary(from: headers["Content-Type"]) {
+        if let boundary = extractBoundary(from: headers[.ContentType]) {
             let part = MIMEPart(headers: headers, body: "")
 
             // Multipart message - parse parts
@@ -551,7 +551,7 @@ public struct MIMEDecoder {
             let partBody = bodyLines.joined(separator: "\n")
 
             // Check if this part itself is multipart (nested multipart)
-            if let nestedBoundary = extractBoundary(from: partHeaders["Content-Type"]) {
+            if let nestedBoundary = extractBoundary(from: partHeaders[.ContentType]) {
                 // Recursively parse nested parts
                 let nestedParts = try parseParts(partBody, boundary: nestedBoundary)
                 let part = MIMEPart(headers: partHeaders, body: "", parts: nestedParts)
@@ -598,7 +598,7 @@ public struct MIMEEncoder {
         let contentParts = Array(message.parts.dropFirst())
 
         // Extract boundary from Content-Type
-        guard let boundary = extractBoundary(from: envelope.headers["Content-Type"]) else {
+        guard let boundary = extractBoundary(from: envelope.headers[.ContentType]) else {
             // No boundary found, encode as non-multipart
             return encode(envelope)
         }
@@ -634,7 +634,7 @@ public struct MIMEEncoder {
         // Check if this part has nested parts (nested multipart)
         if !part.parts.isEmpty {
             // This is a multipart part with nested parts
-            guard let boundary = extractBoundary(from: part.headers["Content-Type"]) else {
+            guard let boundary = extractBoundary(from: part.headers[.ContentType]) else {
                 // No boundary found, just use body
                 result += part.body
                 result += "\n"

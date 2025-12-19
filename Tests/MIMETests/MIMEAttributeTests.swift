@@ -74,11 +74,11 @@ func attributesMultipart() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts[0].headerAttributes("Content-Type").value == "multipart/mixed")
-    #expect(message.parts[0].headerAttributes("Content-Type")["boundary"] == "test")
-    #expect(message.parts[1].headerAttributes("Content-Type").value == "text/plain")
-    #expect(message.parts[1].headerAttributes("Content-Type")["charset"] == "utf-8")
-    #expect(message.parts[1].headerAttributes("Content-Type")["format"] == "flowed")
+    #expect(message.parts[0].headerAttributes(.ContentType).value == "multipart/mixed")
+    #expect(message.parts[0].headerAttributes(.ContentType)["boundary"] == "test")
+    #expect(message.parts[1].headerAttributes(.ContentType).value == "text/plain")
+    #expect(message.parts[1].headerAttributes(.ContentType)["charset"] == "utf-8")
+    #expect(message.parts[1].headerAttributes(.ContentType)["format"] == "flowed")
 }
 
 @Test("Attributes with special characters")
@@ -143,16 +143,16 @@ func contentDispositionName() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let fooParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "foo")
+    let fooParts = message.parts(withHeader: .ContentDisposition, attribute: "name", value: "foo")
     #expect(fooParts.count == 2)
     #expect(fooParts[0].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is foo")
     #expect(fooParts[1].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is another foo")
 
-    let barParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "bar")
+    let barParts = message.parts(withHeader: .ContentDisposition, attribute: "name", value: "bar")
     #expect(barParts.count == 1)
     #expect(barParts[0].body.trimmingCharacters(in: .whitespacesAndNewlines) == "This is bar")
 
-    let bazParts = message.parts(withHeader: "Content-Disposition", attribute: "name", value: "baz")
+    let bazParts = message.parts(withHeader: .ContentDisposition, attribute: "name", value: "baz")
     #expect(bazParts.count == 0)
 }
 
@@ -172,9 +172,9 @@ func contentDispositionNameCaseSensitive() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Names should be case-sensitive
-    #expect(message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "MyFile") != nil)
-    #expect(message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "myfile") == nil)
-    #expect(message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "MYFILE") == nil)
+    #expect(message.firstPart(withHeader: .ContentDisposition, attribute: "name", value: "MyFile") != nil)
+    #expect(message.firstPart(withHeader: .ContentDisposition, attribute: "name", value: "myfile") == nil)
+    #expect(message.firstPart(withHeader: .ContentDisposition, attribute: "name", value: "MYFILE") == nil)
 }
 
 @Test("Content-Disposition filename and name")
@@ -197,11 +197,11 @@ func contentDispositionWithFilenameAndName() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let textPart = message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "textfile")
+    let textPart = message.firstPart(withHeader: .ContentDisposition, attribute: "name", value: "textfile")
     #expect(textPart != nil)
     #expect(textPart?.body.trimmingCharacters(in: .whitespacesAndNewlines) == "Text content")
 
     // Part without name attribute should not match
-    let imagePart = message.firstPart(withHeader: "Content-Disposition", attribute: "name", value: "photo.png")
+    let imagePart = message.firstPart(withHeader: .ContentDisposition, attribute: "name", value: "photo.png")
     #expect(imagePart == nil)
 }
