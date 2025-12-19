@@ -706,22 +706,21 @@ public enum MIMEError: Error, CustomStringConvertible {
 // MARK: - Convenience Extensions
 
 extension MIMEMessage {
-    /// Find all parts with a specific content type.
+    /// Find all parts with a specific header value.
     /// Searches recursively through nested parts.
     ///
     /// ```swift
-    /// let plainParts = message.parts(withContentType: "text/plain")
+    /// let plainParts = message.parts(withHeader: "Content-Type", value: "text/plain")
     /// ```
     ///
-    /// - Parameter contentType: The content type to search for (case-insensitive)
+    /// - Parameter withHeader: The header name to search for (case-sensitive)
+    /// - Parameter value: The header value to search for (case-insensitive)
     /// - Returns: An array of matching parts
-    public func parts(withContentType contentType: String) -> [MIMEPart] {
+    public func parts(withHeader key: String, value: String) -> [MIMEPart] {
         func searchParts(_ parts: [MIMEPart]) -> [MIMEPart] {
             var result: [MIMEPart] = []
             for part in parts {
-                if part.headers["Content-Type"]?.lowercased().contains(contentType.lowercased())
-                    == true
-                {
+                if part.headers[key]?.lowercased().contains(value.lowercased()) == true {
                     result.append(part)
                 }
                 // Recursively search nested parts
@@ -731,27 +730,25 @@ extension MIMEMessage {
             }
             return result
         }
-
         return searchParts(parts)
     }
 
-    /// Find the first part with a specific content type.
-    /// Returns the first part with the specified `Content-Type` value, searching recursively through nested parts.
+    /// Find the first part with a specific header value.
+    /// Returns the first part with the specified header value, searching recursively through nested parts.
     ///
     /// ```swift
-    /// if let textPart = message.firstPart(withContentType: "text/plain") {
+    /// if let textPart = message.firstPart(withHeader: "Content-Type", value: "text/plain") {
     ///     print(textPart.body)
     /// }
     /// ```
     ///
-    /// - Parameter contentType: The Content-Type value to match (case-insensitive)
+    /// - Parameter withHeader: The header name to match (case-sensitive)
+    /// - Parameter value: The header value to match (case-insensitive)
     /// - Returns: The first matching part, or nil if not found
-    public func firstPart(withContentType contentType: String) -> MIMEPart? {
+    public func firstPart(withHeader key: String, value: String) -> MIMEPart? {
         func searchParts(_ parts: [MIMEPart]) -> MIMEPart? {
             for part in parts {
-                if part.headers["Content-Type"]?.lowercased().contains(contentType.lowercased())
-                    == true
-                {
+                if part.headers[key]?.lowercased().contains(value.lowercased()) == true {
                     return part
                 }
                 // Recursively search nested parts
@@ -763,16 +760,16 @@ extension MIMEMessage {
             }
             return nil
         }
-
         return searchParts(parts)
     }
 
-    /// Returns true if the message contains any parts with the specified content type.
+    /// Returns true if the message contains any parts with the specified header value.
     ///
-    /// - Parameter contentType: The content type to check for (case-insensitive)
+    /// - Parameter withHeader: The header name to check for (case-sensitive)
+    /// - Parameter value: The header value to check for (case-insensitive)
     /// - Returns: True if at least one part has the specified content type
-    public func hasPart(withContentType contentType: String) -> Bool {
-        firstPart(withContentType: contentType) != nil
+    public func hasPart(withHeader key: String, value: String) -> Bool {
+        firstPart(withHeader: key, value: value) != nil
     }
 
     /// Find all parts with a specific content-disposition name.
@@ -832,22 +829,6 @@ extension MIMEMessage {
         }
 
         return searchParts(parts)
-    }
-
-    /// Find the part with a specific content-disposition name.
-    ///
-    /// Convenience method that returns the first part matching the given name.
-    ///
-    /// ```swift
-    /// if let fooPart = message.part(named: "foo") {
-    ///     print(fooPart.body)
-    /// }
-    /// ```
-    ///
-    /// - Parameter name: The content-disposition name to search for (case-sensitive)
-    /// - Returns: The first matching part, or nil if not found
-    public func part(named name: String) -> MIMEPart? {
-        firstPart(withContentDispositionName: name)
     }
 
     /// Returns true if the message contains any parts with the specified content-disposition name.
