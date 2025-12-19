@@ -5,6 +5,7 @@ A Swift package for parsing MIME formatted multipart data. This library provides
 ## Features
 
 - ✅ Parse MIME messages (both multipart and non-multipart) according to RFC 2045 and RFC 2046
+- ✅ Nested multipart support (tree structure for complex MIME messages)
 - ✅ Optional MIME-Version header (not required for parsing)
 - ✅ Case-insensitive header access
 - ✅ Full support for duplicate headers (e.g., multiple `Received` headers)
@@ -66,6 +67,90 @@ for part in message.parts {
     print(part.headers["Content-Type"])  // "text/plain", "text/html"
     print(part.body)
 }
+```
+
+### Nested Multipart Message Example
+
+MIME parts can contain nested multipart structures, creating a tree of content. This is commonly used in emails with both text and HTML versions plus attachments:
+
+```swift
+let nestedMimeString = """
+From: sender@example.com
+Content-Type: multipart/mixed; boundary="outer"
+
+--outer
+Content-Type: multipart/alternative; boundary="inner"
+
+--inner
+Content-Type: text/plain
+
+Plain text version
+--inner
+Content-Type: text/html
+
+<p>HTML version</p>
+--inner--
+--outer
+Content-Type: application/pdf
+Content-Disposition: attachment; filename="doc.pdf"
+
+PDF content here
+--outer--
+"""
+
+let message = try MIMEDecoder().decode(nestedMimeString)
+
+// Access nested parts directly
+let alternativePart = message.parts[1]
+print(alternativePart.parts.count)  // 2 (plain and HTML)
+print(alternativePart.parts[0].body)  // "Plain text version"
+print(alternativePart.parts[1].body)  // "<p>HTML version</p>"
+
+// Recursive search through nested parts
+if let plainPart = message.firstPart(withContentType: "text/plain") {
+    print(plainPart.body)  // "Plain text version"
+}
+
+if let htmlPart = message.firstPart(withContentType: "text/html") {
+    print(htmlPart.body)  // "<p>HTML version</p>"
+}
+
+// Get all parts of a specific type (searches recursively)
+let allTextParts = message.parts(withContentType: "text/plain")
+```
+
+You can also programmatically create nested multipart structures:
+
+```swift
+// Create nested multipart/alternative part
+var alternativeHeaders = MIMEHeaders()
+alternativeHeaders["Content-Type"] = "multipart/alternative; boundary=\"alt-boundary\""
+
+var plainHeaders = MIMEHeaders()
+plainHeaders["Content-Type"] = "text/plain"
+let plainPart = MIMEPart(headers: plainHeaders, body: "Plain text", parts: [])
+
+var htmlHeaders = MIMEHeaders()
+htmlHeaders["Content-Type"] = "text/html"
+let htmlPart = MIMEPart(headers: htmlHeaders, body: "<p>HTML</p>", parts: [])
+
+// Nest the plain and HTML parts inside the alternative part
+let alternativePart = MIMEPart(
+    headers: alternativeHeaders,
+    body: "",
+    parts: [plainPart, htmlPart]
+)
+
+// Create top-level message with nested structure
+var envelopeHeaders = MIMEHeaders()
+envelopeHeaders["From"] = "sender@example.com"
+envelopeHeaders["Content-Type"] = "multipart/mixed; boundary=\"outer\""
+
+let envelope = MIMEPart(headers: envelopeHeaders, body: "", parts: [])
+let message = MIMEMessage([envelope, alternativePart])
+
+// Encode back to MIME format
+let encoded = MIMEEncoder().encode(message)
 ```
 
 ### Non-Multipart Message Example
@@ -891,7 +976,8 @@ Represents a single part of a multipart MIME message.
 #### Properties
 
 - `headers: MIMEHeaders` - The headers for this part
-- `body: String` - The body content
+- `body: String` - The body content (empty for multipart parts with nested parts)
+- `parts: [MIMEPart]` - Nested parts for multipart MIME types (empty for non-multipart parts)
 - `decodedBody: String` - The decoded body content
 
 #### Methods

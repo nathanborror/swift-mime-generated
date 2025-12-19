@@ -115,23 +115,48 @@ public struct MIMEHeaderAttributes: Sendable, Equatable {
 
 /// Represents a single part within a MIME message.
 ///
-/// Each part has its own headers and body content. Use the convenience
-/// properties to access common header values:
+/// Each part has its own headers and body content. Parts can be nested to support
+/// multipart MIME types within multipart messages (tree structure).
 ///
 /// ```swift
 /// let part = message.parts[0]
 /// print(part.headers["Content-Type"])  // e.g., "text/plain"
 /// print(part.body)          // The actual content
+///
+/// // For nested multipart
+/// if !part.parts.isEmpty {
+///     for nestedPart in part.parts {
+///         print(nestedPart.body)
+///     }
+/// }
 /// ```
 public struct MIMEPart: Sendable, Identifiable {
     public let id: UUID
     public var headers: MIMEHeaders
-    public var body: String
 
-    public init(id: UUID = UUID(), headers: MIMEHeaders, body: String) {
+    /// Nested parts for multipart MIME types. Empty for non-multipart parts.
+    public var parts: [MIMEPart]
+
+    /// The body content for non-multipart parts, or empty string for multipart parts with nested parts.
+    public var body: String {
+        get {
+            if !parts.isEmpty {
+                return ""
+            }
+            return _body
+        }
+        set {
+            _body = newValue
+        }
+    }
+
+    private var _body: String
+
+    public init(id: UUID = UUID(), headers: MIMEHeaders, body: String, parts: [MIMEPart] = []) {
         self.id = id
         self.headers = headers
-        self.body = body
+        self._body = body
+        self.parts = parts
     }
 
     /// Parse attributes from any header value.
@@ -463,7 +488,7 @@ public struct MIMEDecoder {
         return headers
     }
 
-    /// Parse multipart body into individual parts
+    /// Parse multipart body into individual parts (recursively handles nested multipart)
     private func parseParts(_ body: String, boundary: String) throws -> [MIMEPart] {
         var parts: [MIMEPart] = []
 
@@ -525,8 +550,17 @@ public struct MIMEDecoder {
 
             let partBody = bodyLines.joined(separator: "\n")
 
-            let part = MIMEPart(headers: partHeaders, body: partBody)
-            parts.append(part)
+            // Check if this part itself is multipart (nested multipart)
+            if let nestedBoundary = extractBoundary(from: partHeaders["Content-Type"]) {
+                // Recursively parse nested parts
+                let nestedParts = try parseParts(partBody, boundary: nestedBoundary)
+                let part = MIMEPart(headers: partHeaders, body: "", parts: nestedParts)
+                parts.append(part)
+            } else {
+                // Regular non-multipart part
+                let part = MIMEPart(headers: partHeaders, body: partBody, parts: [])
+                parts.append(part)
+            }
         }
 
         return parts
@@ -578,10 +612,7 @@ public struct MIMEEncoder {
         // Encode each part with boundary
         for part in contentParts {
             result += "--\(boundary)\n"
-            result += encodeHeaders(part.headers)
-            result += "\n"
-            result += part.body
-            result += "\n"
+            result += encodePart(part)
         }
 
         // End boundary
@@ -591,11 +622,40 @@ public struct MIMEEncoder {
     }
 
     public func encode(_ part: MIMEPart) -> Data {
+        let result = encodePart(part)
+        return result.data(using: .utf8) ?? Data()
+    }
+
+    private func encodePart(_ part: MIMEPart) -> String {
         var result = ""
         result += encodeHeaders(part.headers)
         result += "\n"
-        result += part.body
-        return result.data(using: .utf8) ?? Data()
+
+        // Check if this part has nested parts (nested multipart)
+        if !part.parts.isEmpty {
+            // This is a multipart part with nested parts
+            guard let boundary = extractBoundary(from: part.headers["Content-Type"]) else {
+                // No boundary found, just use body
+                result += part.body
+                result += "\n"
+                return result
+            }
+
+            // Encode nested parts with their own boundary
+            for nestedPart in part.parts {
+                result += "--\(boundary)\n"
+                result += encodePart(nestedPart)
+            }
+
+            // End boundary for nested multipart
+            result += "--\(boundary)--\n"
+        } else {
+            // Regular part with body content
+            result += part.body
+            result += "\n"
+        }
+
+        return result
     }
 
     private func encodeHeaders(_ headers: MIMEHeaders) -> String {
@@ -647,6 +707,7 @@ public enum MIMEError: Error, CustomStringConvertible {
 
 extension MIMEMessage {
     /// Find all parts with a specific content type.
+    /// Searches recursively through nested parts.
     ///
     /// ```swift
     /// let plainParts = message.parts(withContentType: "text/plain")
@@ -655,25 +716,55 @@ extension MIMEMessage {
     /// - Parameter contentType: The content type to search for (case-insensitive)
     /// - Returns: An array of matching parts
     public func parts(withContentType contentType: String) -> [MIMEPart] {
-        parts.filter { part in
-            part.headers["Content-Type"]?.lowercased() == contentType.lowercased()
+        func searchParts(_ parts: [MIMEPart]) -> [MIMEPart] {
+            var result: [MIMEPart] = []
+            for part in parts {
+                if part.headers["Content-Type"]?.lowercased().contains(contentType.lowercased())
+                    == true
+                {
+                    result.append(part)
+                }
+                // Recursively search nested parts
+                if !part.parts.isEmpty {
+                    result.append(contentsOf: searchParts(part.parts))
+                }
+            }
+            return result
         }
+
+        return searchParts(parts)
     }
 
     /// Find the first part with a specific content type.
+    /// Returns the first part with the specified `Content-Type` value, searching recursively through nested parts.
     ///
     /// ```swift
-    /// if let htmlPart = message.firstPart(withContentType: "text/html") {
-    ///     print(htmlPart.body)
+    /// if let textPart = message.firstPart(withContentType: "text/plain") {
+    ///     print(textPart.body)
     /// }
     /// ```
     ///
-    /// - Parameter contentType: The content type to search for (case-insensitive)
+    /// - Parameter contentType: The Content-Type value to match (case-insensitive)
     /// - Returns: The first matching part, or nil if not found
     public func firstPart(withContentType contentType: String) -> MIMEPart? {
-        parts.first { part in
-            part.headers["Content-Type"]?.lowercased() == contentType.lowercased()
+        func searchParts(_ parts: [MIMEPart]) -> MIMEPart? {
+            for part in parts {
+                if part.headers["Content-Type"]?.lowercased().contains(contentType.lowercased())
+                    == true
+                {
+                    return part
+                }
+                // Recursively search nested parts
+                if !part.parts.isEmpty {
+                    if let found = searchParts(part.parts) {
+                        return found
+                    }
+                }
+            }
+            return nil
         }
+
+        return searchParts(parts)
     }
 
     /// Returns true if the message contains any parts with the specified content type.
@@ -685,6 +776,7 @@ extension MIMEMessage {
     }
 
     /// Find all parts with a specific content-disposition name.
+    /// Searches recursively through nested parts.
     ///
     /// ```swift
     /// let fooParts = message.parts(withContentDispositionName: "foo")
@@ -693,27 +785,53 @@ extension MIMEMessage {
     /// - Parameter name: The content-disposition name to search for (case-sensitive)
     /// - Returns: An array of matching parts
     public func parts(withContentDispositionName name: String) -> [MIMEPart] {
-        parts.filter { part in
-            let disposition = part.headerAttributes("Content-Disposition")
-            return disposition["name"] == name
+        func searchParts(_ parts: [MIMEPart]) -> [MIMEPart] {
+            var result: [MIMEPart] = []
+            for part in parts {
+                let disposition = part.headerAttributes("Content-Disposition")
+                if disposition["name"] == name {
+                    result.append(part)
+                }
+                // Recursively search nested parts
+                if !part.parts.isEmpty {
+                    result.append(contentsOf: searchParts(part.parts))
+                }
+            }
+            return result
         }
+
+        return searchParts(parts)
     }
 
     /// Find the first part with a specific content-disposition name.
+    /// Returns the first part with the specified `name` attribute in the `Content-Disposition` header, searching recursively.
     ///
     /// ```swift
-    /// if let fooPart = message.firstPart(withContentDispositionName: "foo") {
-    ///     print(fooPart.body)
+    /// if let avatarPart = message.firstPart(withContentDispositionName: "avatar") {
+    ///     print(avatarPart.body)
     /// }
     /// ```
     ///
-    /// - Parameter name: The content-disposition name to search for (case-sensitive)
+    /// - Parameter name: The name to match in Content-Disposition
     /// - Returns: The first matching part, or nil if not found
     public func firstPart(withContentDispositionName name: String) -> MIMEPart? {
-        parts.first { part in
-            let disposition = part.headerAttributes("Content-Disposition")
-            return disposition["name"] == name
+        func searchParts(_ parts: [MIMEPart]) -> MIMEPart? {
+            for part in parts {
+                let disposition = part.headerAttributes("Content-Disposition")
+                if disposition["name"] == name {
+                    return part
+                }
+                // Recursively search nested parts
+                if !part.parts.isEmpty {
+                    if let found = searchParts(part.parts) {
+                        return found
+                    }
+                }
+            }
+            return nil
         }
+
+        return searchParts(parts)
     }
 
     /// Find the part with a specific content-disposition name.
