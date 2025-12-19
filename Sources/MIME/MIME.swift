@@ -12,7 +12,7 @@ import Foundation
 ///     print(part.headers["Content-Type"])
 /// }
 /// ```
-public struct MIMEMessage: Sendable {
+public struct MIMEMessage: Sendable, Equatable {
     public var parts: [MIMEPart]
 
     public init(_ parts: [MIMEPart]) {
@@ -130,7 +130,7 @@ public struct MIMEHeaderAttributes: Sendable, Equatable {
 ///     }
 /// }
 /// ```
-public struct MIMEPart: Sendable, Identifiable {
+public struct MIMEPart: Sendable, Identifiable, Equatable {
     public let id: UUID
     public var headers: MIMEHeaders
 
