@@ -23,15 +23,15 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.headers["From"] == "Test User <test@example.com>")
-    #expect(message.headers["MIME-Version"] == "1.0")
-    #expect(message.parts.count == 2)
+    #expect(message.parts[0].headers["From"] == "Test User <test@example.com>")
+    #expect(message.parts[0].headers["MIME-Version"] == "1.0")
+    #expect(message.parts.count == 3)
 
-    let plainPart = message.parts[0]
+    let plainPart = message.parts[1]
     #expect(plainPart.headers["Content-Type"] == "text/plain")
     #expect(plainPart.body == "Hello, World!")
 
-    let htmlPart = message.parts[1]
+    let htmlPart = message.parts[2]
     #expect(htmlPart.headers["Content-Type"] == "text/html")
     #expect(htmlPart.body == "<h1>Hello, World!</h1>")
 }
@@ -50,7 +50,7 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let keys = message.headers.map { $0.key }
+    let keys = message.parts[0].headers.map { $0.key }
     #expect(keys.count == 6)
     #expect(keys[0] == "From")
     #expect(keys[1] == "To")
@@ -69,11 +69,11 @@ import Testing
     headers["MIME-Version"] = "1.0"
     headers["Content-Type"] = "text/plain"
 
-    let message = MIMEMessage(headers: headers, parts: [])
+    let message = MIMEMessage([.init(headers: headers, body: "")])
     let encoded = MIMEEncoder().encode(message)
     let reparsed = try MIMEDecoder().decode(encoded)
 
-    let keys = reparsed.headers.map { $0.key }
+    let keys = reparsed.parts[0].headers.map { $0.key }
     #expect(keys.count == 6)
     #expect(keys[0] == "From")
     #expect(keys[1] == "To")
@@ -98,7 +98,7 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Get ordered headers suitable for SwiftUI ForEach
-    let headers = message.headers
+    let headers = message.parts[0].headers
 
     // Verify count and order
     #expect(headers.count == 6)
@@ -164,17 +164,16 @@ import Testing
 
     let message = try MIMEDecoder().decode(bookmarkContent)
 
-    // Test headers
-    #expect(
-        message.headers["From"] == "Nathan Borror <zV6nZFTyrypSgXo1mxC02yg6PKeXv8gWpKWa1/AzAPw=>")
-    #expect(message.headers["Date"] == "Wed, 15 Oct 2025 18:42:00 -0700")
-    #expect(message.headers["MIME-Version"] == "1.0")
+    // Test main headers
+    #expect(message.parts[0].headers["From"] == "Nathan Borror <zV6nZFTyrypSgXo1mxC02yg6PKeXv8gWpKWa1/AzAPw=>")
+    #expect(message.parts[0].headers["Date"] == "Wed, 15 Oct 2025 18:42:00 -0700")
+    #expect(message.parts[0].headers["MIME-Version"] == "1.0")
 
     // Test parts count
-    #expect(message.parts.count == 5)
+    #expect(message.parts.count == 6)
 
     // Test book-info part
-    let bookInfo = message.parts[0]
+    let bookInfo = message.parts[1]
     #expect(bookInfo.headers["Content-Type"] == "text/book-info")
     #expect(bookInfo.headers["Title"] == "Why Greatness Cannot Be Planned")
     #expect(bookInfo.headers["Subtitle"] == "The Myth of the Objective")
@@ -185,26 +184,26 @@ import Testing
     #expect(bookInfo.headers["Pages"] == "135")
 
     // Test quote part
-    let quote = message.parts[1]
+    let quote = message.parts[2]
     #expect(quote.headerAttributes("Content-Type").value == "text/quote")
     #expect(quote.headers["Page"] == "10")
     #expect(quote.headers["Date"] == "Thu, 29 May 2025 16:20:00 -0700")
     #expect(quote.body.contains("Sometimes the best way to achieve something great"))
 
     // Test note part
-    let note = message.parts[2]
+    let note = message.parts[3]
     #expect(note.headerAttributes("Content-Type").value == "text/note")
     #expect(note.headers["Page"] == "10")
     #expect(note.body.contains("very cathartic"))
 
     // Test progress part
-    let progress = message.parts[3]
+    let progress = message.parts[4]
     #expect(progress.headers["Content-Type"] == "text/progress")
     #expect(progress.headers["Page"] == "65")
     #expect(progress.body.isEmpty)
 
     // Test review part
-    let review = message.parts[4]
+    let review = message.parts[5]
     #expect(review.headerAttributes("Content-Type").value == "text/review")
     #expect(review.headers["Rating"] == "4.5")
     #expect(review.headers["Spoilers"] == "false")
@@ -259,9 +258,9 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    #expect(message.parts.count == 2)
-    #expect(message.parts[0].body == "Part 1")
-    #expect(message.parts[1].body == "Part 2")
+    #expect(message.parts.count == 3)
+    #expect(message.parts[1].body == "Part 1")
+    #expect(message.parts[2].body == "Part 2")
 }
 
 @Test func testMultipartWithoutBoundaryTreatedAsSinglePart() async throws {
@@ -297,9 +296,9 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    #expect(message.parts.count == 2)
-    #expect(message.parts[0].body.isEmpty)
+    #expect(message.parts.count == 3)
     #expect(message.parts[1].body.isEmpty)
+    #expect(message.parts[2].body.isEmpty)
 }
 
 @Test func testMultilineHeaders() async throws {
@@ -317,9 +316,9 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    #expect(message.headers["From"]?.contains("Very Long Name") == true)
-    #expect(message.headers["From"]?.contains("very.long.email@example.com") == true)
-    #expect(message.parts.count == 1)
+    #expect(message.parts[0].headers["From"]?.contains("Very Long Name") == true)
+    #expect(message.parts[0].headers["From"]?.contains("very.long.email@example.com") == true)
+    #expect(message.parts.count == 2)
 }
 
 @Test func testHeadersCollection() async throws {
@@ -371,12 +370,12 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    #expect(message.parts.count == 2)
+    #expect(message.parts.count == 3)
 
-    let plainPart = message.parts[0]
+    let plainPart = message.parts[1]
     #expect(plainPart.headerAttributes("Content-Type").value == "text/plain")
 
-    let htmlPart = message.parts[1]
+    let htmlPart = message.parts[2]
     #expect(htmlPart.headerAttributes("Content-Type").value == "text/html")
 }
 
@@ -398,13 +397,13 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.headers["From"] == "sender@example.com")
-    #expect(message.headers["To"] == "recipient@example.com")
-    #expect(message.headers["Subject"] == "Test Message")
-    #expect(message.headers["Date"] == "Mon, 01 Jan 2024 12:00:00 -0800")
-    #expect(message.headers["MIME-Version"] == "1.0")
-    #expect(message.headers["Content-Type"] != nil)
-    #expect(message.headers["Content-Type"]?.contains("multipart/mixed") == true)
+    #expect(message.parts[0].headers["From"] == "sender@example.com")
+    #expect(message.parts[0].headers["To"] == "recipient@example.com")
+    #expect(message.parts[0].headers["Subject"] == "Test Message")
+    #expect(message.parts[0].headers["Date"] == "Mon, 01 Jan 2024 12:00:00 -0800")
+    #expect(message.parts[0].headers["MIME-Version"] == "1.0")
+    #expect(message.parts[0].headers["Content-Type"] != nil)
+    #expect(message.parts[0].headers["Content-Type"]?.contains("multipart/mixed") == true)
 }
 
 @Test func testMIMEVersionOptional() async throws {
@@ -429,14 +428,14 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Verify MIME-Version is not present
-    #expect(message.headers["MIME-Version"] == nil)
+    #expect(message.parts[0].headers["MIME-Version"] == nil)
 
     // Verify message parses correctly without MIME-Version
-    #expect(message.headers["From"] == "sender@example.com")
-    #expect(message.headers["Subject"] == "Test Without MIME-Version")
-    #expect(message.parts.count == 2)
-    #expect(message.parts[0].headers["Content-Type"] == "text/plain")
-    #expect(message.parts[1].headers["Content-Type"] == "text/html")
+    #expect(message.parts[0].headers["From"] == "sender@example.com")
+    #expect(message.parts[0].headers["Subject"] == "Test Without MIME-Version")
+    #expect(message.parts.count == 3)
+    #expect(message.parts[1].headers["Content-Type"] == "text/plain")
+    #expect(message.parts[2].headers["Content-Type"] == "text/html")
 }
 
 @Test func testCharsetExtraction() async throws {
@@ -460,9 +459,9 @@ import Testing
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
-    #expect(message.parts[1].headerAttributes("Content-Type")["charset"] == "iso-8859-1")
-    #expect(message.parts[2].headerAttributes("Content-Type")["charset"] == nil)
+    #expect(message.parts[1].headerAttributes("Content-Type")["charset"] == "utf-8")
+    #expect(message.parts[2].headerAttributes("Content-Type")["charset"] == "iso-8859-1")
+    #expect(message.parts[3].headerAttributes("Content-Type")["charset"] == nil)
 }
 
 @Test func testHasPartMethod() async throws {
@@ -500,7 +499,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let part = message.parts[0]
+    let part = message.parts[1]
 
     #expect(part.decodedBody == "Hello, 世界!")
     #expect(part.body == part.decodedBody)
@@ -596,9 +595,9 @@ import Testing
 
     let message = try MIMEDecoder().decode(simpleMessage)
 
-    #expect(message.body != nil)
-    #expect(message.body?.contains("Hello, World!") == true)
-    #expect(message.body?.contains("This is a simple message.") == true)
+    #expect(message.parts[0].body != "")
+    #expect(message.parts[0].body.contains("Hello, World!") == true)
+    #expect(message.parts[0].body.contains("This is a simple message.") == true)
 
     // Test multipart message returns nil
     let multipartMessage = """
@@ -607,18 +606,18 @@ import Testing
         --test
         Content-Type: text/plain
 
-        Part 1
+        Part 2
         --test
         Content-Type: text/html
 
-        Part 2
+        Part 3
         --test--
         """
 
     let multipart = try MIMEDecoder().decode(multipartMessage)
 
-    #expect(multipart.body == nil)
-    #expect(multipart.parts.count == 2)
+    #expect(multipart.parts[0].body == "")
+    #expect(multipart.parts.count == 3)
 }
 
 @Test func testEditingMessageHeaders() async throws {
@@ -633,13 +632,13 @@ import Testing
     var message = try MIMEDecoder().decode(mimeContent)
 
     // Edit headers
-    message.headers["From"] = "updated@example.com"
-    message.headers["Subject"] = "Updated Subject"
-    message.headers["X-Custom-Header"] = "Custom Value"
+    message.parts[0].headers["From"] = "updated@example.com"
+    message.parts[0].headers["Subject"] = "Updated Subject"
+    message.parts[0].headers["X-Custom-Header"] = "Custom Value"
 
-    #expect(message.headers["From"] == "updated@example.com")
-    #expect(message.headers["Subject"] == "Updated Subject")
-    #expect(message.headers["X-Custom-Header"] == "Custom Value")
+    #expect(message.parts[0].headers["From"] == "updated@example.com")
+    #expect(message.parts[0].headers["Subject"] == "Updated Subject")
+    #expect(message.parts[0].headers["X-Custom-Header"] == "Custom Value")
 }
 
 @Test func testEditingPartBody() async throws {
@@ -653,9 +652,7 @@ import Testing
 
     // Edit body
     message.parts[0].body = "Updated content"
-
     #expect(message.parts[0].body == "Updated content")
-    #expect(message.body == "Updated content")
 }
 
 @Test func testEditingPartHeaders() async throws {
@@ -754,11 +751,11 @@ import Testing
 
     // Parse
     var message = try MIMEDecoder().decode(original)
-    #expect(message.headers[0].key == "From")
+    #expect(message.parts[0].headers[0].key == "From")
 
     // Edit
-    message.headers["From"] = "updated@example.com"
-    message.parts[0].body = "Updated content"
+    message.parts[0].headers["From"] = "updated@example.com"
+    message.parts[1].body = "Updated content"
 
     // Encode
     let encoded = MIMEEncoder().encode(message)
@@ -767,10 +764,10 @@ import Testing
     let reparsed = try MIMEDecoder().decode(encoded)
 
     // Verify
-    #expect(reparsed.headers["From"] == "updated@example.com")
-    #expect(reparsed.headers[0].key == "From")
-    #expect(reparsed.headers[1].key == "Content-Type")
-    #expect(reparsed.parts.first?.body == "Updated content")
+    #expect(reparsed.parts[0].headers["From"] == "updated@example.com")
+    #expect(reparsed.parts[0].headers[0].key == "From")
+    #expect(reparsed.parts[0].headers[1].key == "Content-Type")
+    #expect(reparsed.parts[1].body == "Updated content")
 }
 
 @Test func testAddingAndRemovingParts() async throws {
@@ -786,7 +783,7 @@ import Testing
 
     var message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts.count == 1)
+    #expect(message.parts.count == 2)
 
     // Add a new part
     var newHeaders = MIMEHeaders()
@@ -794,14 +791,14 @@ import Testing
     let newPart = MIMEPart(headers: newHeaders, body: "<p>New part</p>")
     message.parts.append(newPart)
 
-    #expect(message.parts.count == 2)
-    #expect(message.parts[1].body == "<p>New part</p>")
+    #expect(message.parts.count == 3)
+    #expect(message.parts[2].body == "<p>New part</p>")
 
     // Remove a part
     message.parts.remove(at: 0)
 
-    #expect(message.parts.count == 1)
-    #expect(message.parts[0].body == "<p>New part</p>")
+    #expect(message.parts.count == 2)
+    #expect(message.parts[1].body == "<p>New part</p>")
 }
 
 @Test func testParsingFromData() async throws {
@@ -827,10 +824,10 @@ import Testing
 
     let message = try MIMEDecoder().decode(data)
 
-    #expect(message.headers["From"] == "Test User <test@example.com>")
-    #expect(message.parts.count == 2)
-    #expect(message.parts[0].body == "Hello from Data!")
-    #expect(message.parts[1].body == "<p>HTML from Data</p>")
+    #expect(message.parts[0].headers["From"] == "Test User <test@example.com>")
+    #expect(message.parts.count == 3)
+    #expect(message.parts[1].body == "Hello from Data!")
+    #expect(message.parts[2].body == "<p>HTML from Data</p>")
 }
 
 @Test func testParsingFromInvalidUTF8Data() async throws {
@@ -881,10 +878,10 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Subscript should return first value
-    #expect(message.headers["Received"] == "from server1.example.com by server2.example.com")
+    #expect(message.parts[0].headers["Received"] == "from server1.example.com by server2.example.com")
 
     // values(for:) should return all values
-    let receivedHeaders = message.headers.values(for: "Received")
+    let receivedHeaders = message.parts[0].headers.values(for: "Received")
     #expect(receivedHeaders.count == 3)
     #expect(receivedHeaders[0] == "from server1.example.com by server2.example.com")
     #expect(receivedHeaders[1] == "from server2.example.com by server3.example.com")
@@ -979,7 +976,7 @@ import Testing
     let message = try MIMEDecoder().decode(originalContent)
 
     // Verify parsing
-    #expect(message.headers.values(for: "Received").count == 3)
+    #expect(message.parts[0].headers.values(for: "Received").count == 3)
 
     // Encode back
     let encoded = MIMEEncoder().encode(message)
@@ -988,7 +985,7 @@ import Testing
     let reparsed = try MIMEDecoder().decode(encoded)
 
     // Verify all Received headers are preserved
-    let receivedHeaders = reparsed.headers.values(for: "Received")
+    let receivedHeaders = reparsed.parts[0].headers.values(for: "Received")
     #expect(receivedHeaders.count == 3)
     #expect(receivedHeaders[0] == "from server1.example.com")
     #expect(receivedHeaders[1] == "from server2.example.com")
@@ -1024,12 +1021,12 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Check message-level duplicate headers
-    #expect(message.headers.values(for: "Received").count == 2)
+    #expect(message.parts[0].headers.values(for: "Received").count == 2)
 
     // Check part-level duplicate headers
-    #expect(message.parts[0].headers.values(for: "X-Custom").count == 2)
-    #expect(message.parts[0].headers.values(for: "X-Custom")[0] == "custom1")
-    #expect(message.parts[0].headers.values(for: "X-Custom")[1] == "custom2")
+    #expect(message.parts[1].headers.values(for: "X-Custom").count == 2)
+    #expect(message.parts[1].headers.values(for: "X-Custom")[0] == "custom1")
+    #expect(message.parts[1].headers.values(for: "X-Custom")[1] == "custom2")
 }
 
 @Test func testSettingNilRemovesAllDuplicates() async throws {
@@ -1134,7 +1131,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let part = message.parts[0]
+    let part = message.parts[1]
     let attrs = part.headerAttributes("Content-Type")
 
     #expect(attrs.value == "text/plain")
@@ -1154,11 +1151,11 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let attrs = message.headerAttributes("Content-Type")
+    let attributes = MIMEHeaderAttributes.parse(message.parts[0].headers["Content-Type"])
 
-    #expect(attrs.value == "multipart/mixed")
-    #expect(attrs["boundary"] == "test")
-    #expect(attrs["charset"] == "utf-8")
+    #expect(attributes.value == "multipart/mixed")
+    #expect(attributes["boundary"] == "test")
+    #expect(attributes["charset"] == "utf-8")
 }
 
 @Test func testHeaderAttributesMethod() async throws {
@@ -1174,7 +1171,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let part = message.parts[0]
+    let part = message.parts[1]
     let disposition = part.headerAttributes("Content-Disposition")
 
     #expect(disposition.value == "attachment")
@@ -1195,7 +1192,7 @@ import Testing
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    let disposition = message.headerAttributes("Content-Disposition")
+    let disposition = MIMEHeaderAttributes.parse(message.parts[0].headers["Content-Disposition"])
 
     #expect(disposition.value == "inline")
     #expect(disposition["filename"] == "message.txt")
@@ -1224,13 +1221,13 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Message contentType should be just the media type
-    #expect(message.headers["Content-Type"] == "multipart/mixed; boundary=\"test\"")
+    #expect(message.parts[0].headers["Content-Type"] == "multipart/mixed; boundary=\"test\"")
 
     // Part contentType should be just the media type
-    #expect(message.parts[0].headerAttributes("Content-Type").value == "text/plain")
+    #expect(message.parts[1].headerAttributes("Content-Type").value == "text/plain")
 
     // But charset should still be accessible
-    #expect(message.parts[0].headerAttributes("Content-Type")["charset"] == "utf-8")
+    #expect(message.parts[1].headerAttributes("Content-Type")["charset"] == "utf-8")
 }
 
 @Test func testHeaderAttributesEquality() async throws {
@@ -1273,9 +1270,9 @@ import Testing
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Should successfully parse with the boundary
-    #expect(message.parts.count == 2)
-    #expect(message.parts[0].headers["Content-Type"] == "text/plain")
-    #expect(message.parts[1].headers["Content-Type"] == "text/html")
+    #expect(message.parts.count == 3)
+    #expect(message.parts[1].headers["Content-Type"] == "text/plain")
+    #expect(message.parts[2].headers["Content-Type"] == "text/html")
 }
 
 @Test func testPartsWithContentDispositionName() async throws {

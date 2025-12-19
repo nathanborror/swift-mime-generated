@@ -13,49 +13,11 @@ import Foundation
 /// }
 /// ```
 public struct MIMEMessage: Sendable {
-    public var headers: MIMEHeaders
     public var parts: [MIMEPart]
 
-    public init(headers: MIMEHeaders, parts: [MIMEPart]) {
-        self.headers = headers
+    public init(_ parts: [MIMEPart]) {
         self.parts = parts
     }
-
-    /// Parse attributes from any header value.
-    ///
-    /// Use this to extract attributes from any header that follows the
-    /// `value; param=value` format.
-    ///
-    /// ```swift
-    /// let message = try MIMEDecoder().decode(mimeString)
-    /// let disposition = message.headerAttributes("Content-Disposition")
-    /// print(disposition.value)         // "inline"
-    /// print(disposition["filename"])   // "image.png"
-    /// ```
-    ///
-    /// - Parameter headerName: The name of the header to parse
-    /// - Returns: Parsed attributes with primary value and parameters
-    public func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes {
-        MIMEHeaderAttributes.parse(headers[headerName])
-    }
-
-    /// The body content for non-multipart messages.
-    ///
-    /// For non-multipart messages (those without a boundary parameter),
-    /// this returns the body content directly. For multipart messages,
-    /// this returns nil and you should access individual parts instead.
-    ///
-    /// ```swift
-    /// let message = try MIMEDecoder().decode(simpleMessage)
-    /// if let body = message.body {
-    ///     print(body)  // Direct access to body content
-    /// }
-    /// ```
-    public var body: String? {
-        guard parts.count == 1 else { return nil }
-        return parts[0].body
-    }
-
 }
 
 // MARK: - MIME Header Attributes
@@ -447,13 +409,15 @@ public struct MIMEDecoder {
 
         // Extract boundary from Content-Type header
         if let boundary = extractBoundary(from: headers["Content-Type"]) {
+            let part = MIMEPart(headers: headers, body: "")
+
             // Multipart message - parse parts
             let parts = try parseParts(bodyContent, boundary: boundary)
-            return MIMEMessage(headers: headers, parts: parts)
+            return MIMEMessage([part] + parts)
         } else {
             // Non-multipart message - treat entire body as single part
             let part = MIMEPart(headers: headers, body: bodyContent)
-            return MIMEMessage(headers: headers, parts: [part])
+            return MIMEMessage([part])
         }
     }
 
@@ -585,55 +549,63 @@ public struct MIMEEncoder {
 
     public init() {}
 
-    /// Encode a MIME message to Data.
-    ///
-    /// - Parameter message: The MIME message to encode
-    /// - Returns: The encoded message as Data
     public func encode(_ message: MIMEMessage) -> Data {
-        var result = message.headers
-            .map { "\($0.key): \($0.value)" }
-            .joined(separator: "\n")
-
-        // Empty line between headers and body
-        result += "\n\n"
-
-        // Extract boundary if present
-        if let boundary = extractBoundary(from: message.headers["Content-Type"]) {
-            for part in message.parts {
-                result += "--\(boundary)\n"
-                result += String(data: encode(part), encoding: .utf8) ?? ""
-            }
-
-            result += "--\(boundary)--\n"
-        } else {
-            if message.parts.count == 1 {
-                result += message.parts[0].body
-            }
+        guard !message.parts.isEmpty else {
+            return Data()
         }
 
-        return result.data(using: .utf8) ?? Data()
-    }
+        // If single part (non-multipart), encode it directly
+        if message.parts.count == 1 {
+            return encode(message.parts[0])
+        }
 
-    /// Encode a MIME part to Data.
-    ///
-    /// - Parameter part: The MIME part to encode
-    /// - Returns: The encoded part as Data
-    public func encode(_ part: MIMEPart) -> Data {
-        var result = part.headers
-            .map { "\($0.key): \($0.value)" }
-            .joined(separator: "\n")
+        // Multipart message - first part contains envelope headers
+        let envelope = message.parts[0]
+        let contentParts = Array(message.parts.dropFirst())
 
-        // Empty line between headers and body
-        result += "\n\n"
+        // Extract boundary from Content-Type
+        guard let boundary = extractBoundary(from: envelope.headers["Content-Type"]) else {
+            // No boundary found, encode as non-multipart
+            return encode(envelope)
+        }
 
-        // Body
-        result += part.body
+        var result = ""
+
+        // Encode envelope headers
+        result += encodeHeaders(envelope.headers)
         result += "\n"
 
+        // Encode each part with boundary
+        for part in contentParts {
+            result += "--\(boundary)\n"
+            result += encodeHeaders(part.headers)
+            result += "\n"
+            result += part.body
+            result += "\n"
+        }
+
+        // End boundary
+        result += "--\(boundary)--\n"
+
         return result.data(using: .utf8) ?? Data()
     }
 
-    /// Extract boundary from Content-Type header
+    public func encode(_ part: MIMEPart) -> Data {
+        var result = ""
+        result += encodeHeaders(part.headers)
+        result += "\n"
+        result += part.body
+        return result.data(using: .utf8) ?? Data()
+    }
+
+    private func encodeHeaders(_ headers: MIMEHeaders) -> String {
+        var result = ""
+        for header in headers.storage {
+            result += "\(header.key): \(header.value)\n"
+        }
+        return result
+    }
+
     private func extractBoundary(from contentType: String?) -> String? {
         let attributes = MIMEHeaderAttributes.parse(contentType)
         return attributes["boundary"]
