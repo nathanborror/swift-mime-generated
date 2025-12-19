@@ -219,8 +219,8 @@ public struct MIMEPart: Sendable, Identifiable {
 /// ```
 public struct MIMEHeader: Sendable, Identifiable, Equatable {
     public let id: UUID
-    public let key: String
-    public let value: String
+    public var key: String
+    public var value: String
 
     public init(id: UUID = UUID(), key: String, value: String) {
         self.id = id
