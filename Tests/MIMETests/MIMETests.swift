@@ -757,8 +757,12 @@ func multipartNestedRoundTrip() async throws {
     #expect(decodedAttachment.parts.isEmpty)
 
     // Test recursive search still works
-    #expect(decoded.firstPart(withHeader: .ContentType, value: "text/plain")?.body == "Plain text version")
-    #expect(decoded.firstPart(withHeader: .ContentType, value: "text/html")?.body == "<p>HTML version</p>")
+    #expect(
+        decoded.firstPart(withHeader: .ContentType, value: "text/plain")?.body
+            == "Plain text version")
+    #expect(
+        decoded.firstPart(withHeader: .ContentType, value: "text/html")?.body
+            == "<p>HTML version</p>")
 }
 
 @Test("Multipart nested programmatic creation")
@@ -836,11 +840,15 @@ func multipartNestedProgrammaticCreation() async throws {
     #expect(message.parts[2].headers[.ContentType]?.contains("application/zip") == true)
 
     // Test recursive search finds deeply nested parts
-    #expect(message.firstPart(withHeader: .ContentType, value: "text/plain")?.body == "Plain text fallback")
     #expect(
-        message.firstPart(withHeader: .ContentType, value: "text/html")?.body.contains("<img src=\"cid:logo\">")
+        message.firstPart(withHeader: .ContentType, value: "text/plain")?.body
+            == "Plain text fallback")
+    #expect(
+        message.firstPart(withHeader: .ContentType, value: "text/html")?.body.contains(
+            "<img src=\"cid:logo\">")
             == true)
-    #expect(message.firstPart(withHeader: .ContentType, value: "image/png")?.body == "base64imagedata")
+    #expect(
+        message.firstPart(withHeader: .ContentType, value: "image/png")?.body == "base64imagedata")
 
     // Test that all parts of each type are found
     #expect(message.parts(withHeader: .ContentType, value: "text/plain").count == 1)
@@ -855,8 +863,140 @@ func multipartNestedProgrammaticCreation() async throws {
 
     // Verify decoded structure matches original
     #expect(
-        decoded.firstPart(withHeader: .ContentType, value: "text/html")?.body.contains("<img src=\"cid:logo\">")
+        decoded.firstPart(withHeader: .ContentType, value: "text/html")?.body.contains(
+            "<img src=\"cid:logo\">")
             == true)
-    #expect(decoded.firstPart(withHeader: .ContentType, value: "image/png")?.headers[.ContentID] == "<logo>")
+    #expect(
+        decoded.firstPart(withHeader: .ContentType, value: "image/png")?.headers[.ContentID]
+            == "<logo>")
 }
 
+@Test("Newline preservation in encode/decode")
+func newlinePreservation() async throws {
+    // Test 1: Body without trailing newline
+    var headers1 = MIMEHeaders()
+    headers1[.ContentType] = "text/plain"
+    let part1 = MIMEPart(headers: headers1, body: "Content without trailing newline", parts: [])
+    let message1 = MIMEMessage([part1])
+
+    let encoded1 = MIMEEncoder().encode(message1)
+    let decoded1 = try MIMEDecoder().decode(encoded1)
+
+    #expect(decoded1.parts[0].body == "Content without trailing newline")
+
+    // Test 2: Body with single trailing newline
+    var headers2 = MIMEHeaders()
+    headers2[.ContentType] = "text/plain"
+    let part2 = MIMEPart(headers: headers2, body: "Content with one newline\n", parts: [])
+    let message2 = MIMEMessage([part2])
+
+    let encoded2 = MIMEEncoder().encode(message2)
+    let decoded2 = try MIMEDecoder().decode(encoded2)
+
+    #expect(decoded2.parts[0].body == "Content with one newline\n")
+
+    // Test 3: Multipart message - body content should not gain extra newlines
+    var envelopeHeaders = MIMEHeaders()
+    envelopeHeaders[.ContentType] = "multipart/mixed; boundary=\"test123\""
+    let envelope = MIMEPart(headers: envelopeHeaders, body: "", parts: [])
+
+    var partHeaders = MIMEHeaders()
+    partHeaders[.ContentType] = "text/plain"
+    let bodyPart = MIMEPart(headers: partHeaders, body: "Line 1\nLine 2", parts: [])
+
+    let message3 = MIMEMessage([envelope, bodyPart])
+
+    let encoded3 = MIMEEncoder().encode(message3)
+    let decoded3 = try MIMEDecoder().decode(encoded3)
+
+    #expect(decoded3.parts[1].body == "Line 1\nLine 2")
+
+    // Test 4: Body with multiple trailing newlines
+    var headers4 = MIMEHeaders()
+    headers4[.ContentType] = "text/plain"
+    let part4 = MIMEPart(headers: headers4, body: "Content\n\n\n", parts: [])
+    let message4 = MIMEMessage([part4])
+
+    let encoded4 = MIMEEncoder().encode(message4)
+    let decoded4 = try MIMEDecoder().decode(encoded4)
+
+    #expect(decoded4.parts[0].body == "Content\n\n\n")
+
+    // Test 5: Empty body
+    var headers5 = MIMEHeaders()
+    headers5[.ContentType] = "text/plain"
+    let part5 = MIMEPart(headers: headers5, body: "", parts: [])
+    let message5 = MIMEMessage([part5])
+
+    let encoded5 = MIMEEncoder().encode(message5)
+    let decoded5 = try MIMEDecoder().decode(encoded5)
+
+    #expect(decoded5.parts[0].body == "")
+
+    // Test 6: Body that is just newlines
+    var headers6 = MIMEHeaders()
+    headers6[.ContentType] = "text/plain"
+    let part6 = MIMEPart(headers: headers6, body: "\n\n", parts: [])
+    let message6 = MIMEMessage([part6])
+
+    let encoded6 = MIMEEncoder().encode(message6)
+    let decoded6 = try MIMEDecoder().decode(encoded6)
+
+    #expect(decoded6.parts[0].body == "\n\n")
+
+    // Test 7: Complex multiline content with mixed newlines
+    var headers7 = MIMEHeaders()
+    headers7[.ContentType] = "text/plain"
+    let part7 = MIMEPart(
+        headers: headers7, body: "Line 1\n\nLine 3\nLine 4\n\n\nLine 7\n", parts: [])
+    let message7 = MIMEMessage([part7])
+
+    let encoded7 = MIMEEncoder().encode(message7)
+    let decoded7 = try MIMEDecoder().decode(encoded7)
+
+    #expect(decoded7.parts[0].body == "Line 1\n\nLine 3\nLine 4\n\n\nLine 7\n")
+}
+
+@Test("Exact round-trip encoding preserves original format")
+func exactRoundTripEncoding() async throws {
+    // Parse a MIME message from string
+    let original = """
+        From: sender@example.com
+        To: recipient@example.com
+        Content-Type: multipart/mixed; boundary="boundary123"
+
+        --boundary123
+        Content-Type: text/plain
+
+        First part content
+        --boundary123
+        Content-Type: text/html
+
+        <p>Second part</p>
+        --boundary123--
+        """
+
+    let decoder = MIMEDecoder()
+    let encoder = MIMEEncoder()
+
+    // Decode the original message
+    let message1 = try decoder.decode(original)
+
+    // Encode it back
+    let encoded1 = encoder.encode(message1)
+
+    // Decode the encoded version
+    let message2 = try decoder.decode(encoded1)
+
+    // Encode it again
+    let encoded2 = encoder.encode(message2)
+
+    // The two encoded versions should be identical
+    #expect(encoded1 == encoded2)
+
+    // Verify content is preserved
+    #expect(message2.parts[0].headers[.From] == "sender@example.com")
+    #expect(message2.parts[0].headers[.To] == "recipient@example.com")
+    #expect(message2.parts[1].body == "First part content")
+    #expect(message2.parts[2].body == "<p>Second part</p>")
+}

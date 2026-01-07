@@ -538,14 +538,19 @@ public struct MIMEDecoder {
                 currentIndex += 1
             }
 
-            // Remove trailing empty lines and boundary markers
-            while let last = bodyLines.last {
-                let trimmedLast = last.trimmingCharacters(in: .whitespacesAndNewlines)
-                if trimmedLast.isEmpty || trimmedLast.hasPrefix("--") {
-                    bodyLines.removeLast()
-                } else {
-                    break
-                }
+            // Remove only the single trailing empty line added by the encoder
+            // and any boundary markers, but preserve newlines that are part of the content
+            if let last = bodyLines.last,
+                last.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            {
+                bodyLines.removeLast()
+            }
+
+            // Remove any boundary end markers
+            while let last = bodyLines.last,
+                last.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("--")
+            {
+                bodyLines.removeLast()
             }
 
             let partBody = bodyLines.joined(separator: "\n")
@@ -613,6 +618,7 @@ public struct MIMEEncoder {
         for part in contentParts {
             result += "--\(boundary)\n"
             result += encodePart(part)
+            result += "\n"
         }
 
         // End boundary
@@ -637,7 +643,6 @@ public struct MIMEEncoder {
             guard let boundary = extractBoundary(from: part.headers[.ContentType]) else {
                 // No boundary found, just use body
                 result += part.body
-                result += "\n"
                 return result
             }
 
@@ -645,6 +650,7 @@ public struct MIMEEncoder {
             for nestedPart in part.parts {
                 result += "--\(boundary)\n"
                 result += encodePart(nestedPart)
+                result += "\n"
             }
 
             // End boundary for nested multipart
@@ -652,7 +658,6 @@ public struct MIMEEncoder {
         } else {
             // Regular part with body content
             result += part.body
-            result += "\n"
         }
 
         return result
