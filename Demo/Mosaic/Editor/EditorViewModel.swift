@@ -123,6 +123,10 @@ class PartModel: Identifiable {
         headers.keys.sorted()
     }
 
+    var removedTemplateHeaders: [String] {
+        kind.headerFields.map(\.key).filter { headers[$0] == nil }
+    }
+
     func buildMIMEPart() -> MIMEPart {
         var mimeHeaders = MIMEHeaders()
         mimeHeaders["Content-Type"] = kind.contentType

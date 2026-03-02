@@ -37,23 +37,7 @@ struct PartView: View {
 
                 Menu {
                     Menu {
-                        Button("Date") {
-                            part.headers["Date"] = Date.now.rfc1123
-                        }
-                        Button("From") {
-                            part.headers["From"] = ""
-                        }
-                        Button("To") {
-                            part.headers["To"] = ""
-                        }
-                        Button("Subject") {
-                            part.headers["Subject"] = ""
-                        }
-                        Divider()
-                        Button("Custom Header...") {
-                            newHeaderName = ""
-                            isAddingHeader = true
-                        }
+                        addHeaderMenu
                     } label: {
                         Text("Add Header")
                     }
@@ -114,6 +98,22 @@ struct PartView: View {
                     part.headers[name] = ""
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var addHeaderMenu: some View {
+        ForEach(part.removedTemplateHeaders, id: \.self) { key in
+            Button(key) {
+                part.headers[key] = key == "Date" ? Date.now.rfc1123 : ""
+            }
+        }
+        if !part.removedTemplateHeaders.isEmpty {
+            Divider()
+        }
+        Button("Custom...") {
+            newHeaderName = ""
+            isAddingHeader = true
         }
     }
 
