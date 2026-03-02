@@ -98,7 +98,7 @@ class PartModel: Identifiable {
         // Seed from the kind's template fields, then overlay any provided headers
         var seeded: [String: String] = [:]
         for field in kind.headerFields {
-            seeded[field.key] = ""
+            seeded[field.key] = field == .date ? Date.now.rfc1123 : ""
         }
         seeded.merge(headers) { _, new in new }
         self.headers = seeded
