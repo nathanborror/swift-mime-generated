@@ -8,8 +8,8 @@ enum MessageKind: String, CaseIterable, CustomStringConvertible {
     init?(_ contentType: String) {
         switch contentType {
         case "text/markdown": self = .markdown
-        case "text/x-wild-note": self = .note
-        case "multipart/x-wild-bookmark": self = .bookmark
+        case "text/x-note": self = .note
+        case "multipart/x-bookmark": self = .bookmark
         default: return nil
         }
     }
@@ -25,8 +25,8 @@ enum MessageKind: String, CaseIterable, CustomStringConvertible {
     var contentType: String {
         switch self {
         case .markdown: "text/markdown"
-        case .note: "text/x-wild-note"
-        case .bookmark: "multipart/x-wild-bookmark"
+        case .note: "text/x-note"
+        case .bookmark: "multipart/x-bookmark"
         }
     }
 
@@ -44,11 +44,11 @@ enum PartKind: String, CaseIterable, CustomStringConvertible {
 
     init?(contentType: String) {
         switch contentType {
-        case "text/x-wild-book": self = .book
-        case "text/x-wild-book-progress": self = .bookProgress
-        case "text/x-wild-review": self = .review
-        case "text/x-wild-link": self = .link
-        case "text/x-wild-note": self = .note
+        case "text/x-book": self = .book
+        case "text/x-book-progress": self = .bookProgress
+        case "text/x-review": self = .review
+        case "text/x-link": self = .link
+        case "text/x-note": self = .note
         default: return nil
         }
     }
@@ -65,11 +65,11 @@ enum PartKind: String, CaseIterable, CustomStringConvertible {
 
     var contentType: String {
         switch self {
-        case .book: "text/x-wild-book"
-        case .bookProgress: "text/x-wild-book-progress"
-        case .review: "text/x-wild-review"
-        case .link: "text/x-wild-link"
-        case .note: "text/x-wild-note"
+        case .book: "text/x-book"
+        case .bookProgress: "text/x-book-progress"
+        case .review: "text/x-review"
+        case .link: "text/x-link"
+        case .note: "text/x-note"
         }
     }
 
