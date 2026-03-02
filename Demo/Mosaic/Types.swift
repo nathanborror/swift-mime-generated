@@ -113,4 +113,11 @@ enum PartField: String, CaseIterable {
         case .reviewSpoilers: "Spoilers"
         }
     }
+
+    var defaultValue: String {
+        switch self {
+        case .date: Date.now.rfc1123
+        default: ""
+        }
+    }
 }

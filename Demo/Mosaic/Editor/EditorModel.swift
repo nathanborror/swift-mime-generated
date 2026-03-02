@@ -6,7 +6,7 @@ enum EditorFocus: Hashable {
 }
 
 @Observable
-class EditorViewModel {
+class EditorModel {
     var kind: MessageKind = .markdown
     var headers: MIMEHeaders = ["Date": Date.now.rfc1123]
     var body = ""
@@ -43,7 +43,7 @@ class EditorViewModel {
         parts.insert(part, at: destinationIndex)
     }
 
-    func buildMessage() -> MIMEMessage {
+    func makeMessage() -> MIMEMessage {
         var headers = headers
         if isMultipart {
             let boundary = UUID().uuidString
@@ -51,7 +51,7 @@ class EditorViewModel {
             let envelope = MIMEPart(headers: headers, body: "")
             var mimeParts = [envelope]
             for part in parts {
-                mimeParts.append(part.buildMIMEPart())
+                mimeParts.append(part.makeMIMEPart())
             }
             return MIMEMessage(mimeParts)
         } else {
@@ -82,60 +82,5 @@ class EditorViewModel {
             body = first.body
             parts = []
         }
-    }
-}
-
-@Observable
-class PartModel: Identifiable {
-    let id = UUID()
-    var kind: PartKind
-    var headers: [String: String]
-    var body: String
-    var isCollapsed: Bool
-
-    init(kind: PartKind, headers: [String: String] = [:], body: String = "", isCollapsed: Bool = false) {
-        self.kind = kind
-        // Seed from the kind's template fields, then overlay any provided headers
-        var seeded: [String: String] = [:]
-        for field in kind.headerFields {
-            seeded[field.key] = field == .date ? Date.now.rfc1123 : ""
-        }
-        seeded.merge(headers) { _, new in new }
-        self.headers = seeded
-        self.body = body
-        self.isCollapsed = isCollapsed
-    }
-
-    init(from part: MIMEPart) {
-        let contentType = part.headerAttributes("Content-Type")
-        self.kind = PartKind(contentType: contentType.value) ?? .note
-        self.body = part.body
-        self.isCollapsed = false
-        self.headers = [:]
-        for header in part.headers {
-            // Skip Content-Type since it's derived from kind
-            guard header.key != "Content-Type" else { continue }
-            headers[header.key] = header.value
-        }
-    }
-
-    var sortedHeaderKeys: [String] {
-        let templateKeys = kind.headerFields.map(\.key)
-        let templatePresent = templateKeys.filter { headers[$0] != nil }
-        let custom = headers.keys.filter { key in !templateKeys.contains(key) }.sorted()
-        return templatePresent + custom
-    }
-
-    var removedTemplateHeaders: [String] {
-        kind.headerFields.map(\.key).filter { headers[$0] == nil }
-    }
-
-    func buildMIMEPart() -> MIMEPart {
-        var mimeHeaders = MIMEHeaders()
-        mimeHeaders["Content-Type"] = kind.contentType
-        for (key, value) in headers where !value.isEmpty {
-            mimeHeaders[key] = value
-        }
-        return MIMEPart(headers: mimeHeaders, body: body)
     }
 }

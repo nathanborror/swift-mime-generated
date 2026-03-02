@@ -1,5 +1,4 @@
 import SwiftUI
-import MIME
 
 struct HeaderField: View {
     let key: String

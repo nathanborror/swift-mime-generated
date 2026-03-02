@@ -1,21 +1,21 @@
 import SwiftUI
 
 struct PartStack: View {
-    @Bindable var model: EditorViewModel
+    @Environment(EditorModel.self) var editor
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            ForEach(Array(model.parts.enumerated()), id: \.element.id) { index, part in
+            ForEach(Array(editor.parts.enumerated()), id: \.element.id) { index, part in
                 PartView(
                     part: part,
                     canMoveUp: index > 0,
-                    canMoveDown: index < model.parts.count - 1
+                    canMoveDown: index < editor.parts.count - 1
                 ) {
-                    model.movePartUp(at: index)
+                    editor.movePartUp(at: index)
                 } onMoveDown: {
-                    model.movePartDown(at: index)
+                    editor.movePartDown(at: index)
                 } onDelete: {
-                    model.removePart(at: index)
+                    editor.removePart(at: index)
                 }
             }
         }

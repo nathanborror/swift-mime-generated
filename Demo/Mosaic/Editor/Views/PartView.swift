@@ -67,7 +67,7 @@ struct PartView: View {
 
             if !part.isCollapsed {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(part.sortedHeaderKeys, id: \.self) { key in
+                    ForEach(part.orderedHeaderKeys, id: \.self) { key in
                         HeaderField(
                             key: key,
                             value: headerBinding(for: key),
@@ -103,12 +103,12 @@ struct PartView: View {
 
     @ViewBuilder
     private var addHeaderMenu: some View {
-        ForEach(part.removedTemplateHeaders, id: \.self) { key in
-            Button(key) {
-                part.headers[key] = key == "Date" ? Date.now.rfc1123 : ""
+        ForEach(part.missingTemplateHeaders, id: \.self) { field in
+            Button(field.key) {
+                part.headers[field.key] = field.defaultValue
             }
         }
-        if !part.removedTemplateHeaders.isEmpty {
+        if !part.missingTemplateHeaders.isEmpty {
             Divider()
         }
         Button("Custom...") {

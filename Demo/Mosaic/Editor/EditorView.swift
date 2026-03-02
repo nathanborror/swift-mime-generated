@@ -3,7 +3,7 @@ import MIME
 
 struct EditorView: View {
 
-    @State var editorViewModel = EditorViewModel()
+    @State var editor = EditorModel()
     @State private var isAddingHeader = false
     @State private var newHeaderName = ""
     @FocusState var focus: EditorFocus?
@@ -13,35 +13,35 @@ struct EditorView: View {
             HeaderStack(focus: $focus)
                 .background(.background)
 
-            if editorViewModel.isMultipart {
+            if editor.isMultipart {
                 Divider()
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
-                        PartStack(model: editorViewModel)
+                        PartStack()
                     }
                 }
             } else {
                 Spacer()
             }
         }
-        .environment(editorViewModel)
+        .environment(editor)
         .containerBackground(.background, for: .window)
-        .background(.quinary.opacity(editorViewModel.isMultipart ? 1 : 0))
+        .background(.quinary.opacity(editor.isMultipart ? 1 : 0))
         .toolbar {
             ToolbarItem {
                 Menu {
                     Menu {
                         Button("Date") {
-                            editorViewModel.headers["Date"] = Date.now.rfc1123
+                            editor.headers["Date"] = Date.now.rfc1123
                         }
                         Button("From") {
-                            editorViewModel.headers["From"] = ""
+                            editor.headers["From"] = ""
                         }
                         Button("To") {
-                            editorViewModel.headers["To"] = ""
+                            editor.headers["To"] = ""
                         }
                         Button("Subject") {
-                            editorViewModel.headers["Subject"] = ""
+                            editor.headers["Subject"] = ""
                         }
                         Divider()
                         Button("Custom...") {
@@ -53,9 +53,9 @@ struct EditorView: View {
                     }
                     Divider()
                     Button("Reset") {
-                        editorViewModel.headers = .init()
-                        editorViewModel.body = ""
-                        editorViewModel.parts.removeAll()
+                        editor.headers = .init()
+                        editor.body = ""
+                        editor.parts.removeAll()
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -66,7 +66,7 @@ struct EditorView: View {
 
             ToolbarItem {
                 Button {
-                    let message = editorViewModel.buildMessage()
+                    let message = editor.makeMessage()
                     let encoder = MIMEEncoder()
                     let data = encoder.encode(message)
                     if let output = String(data: data, encoding: .utf8) {
@@ -84,7 +84,7 @@ struct EditorView: View {
             Button("Add") {
                 let name = newHeaderName.trimmingCharacters(in: .whitespaces)
                 if !name.isEmpty {
-                    editorViewModel.headers[name] = ""
+                    editor.headers[name] = ""
                 }
             }
         }

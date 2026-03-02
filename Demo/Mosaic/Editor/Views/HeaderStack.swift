@@ -2,37 +2,27 @@ import SwiftUI
 import MIME
 
 struct HeaderStack: View {
-    @Environment(EditorViewModel.self) var editorViewModel
+    @Environment(EditorModel.self) var editor
 
     var focus: FocusState<EditorFocus?>.Binding
 
     var body: some View {
-        @Bindable var editorViewModel = editorViewModel
+        @Bindable var editor = editor
         VStack(alignment: .leading, spacing: 0) {
             ContentTypeField()
 
-            ForEach($editorViewModel.headers.storage) { $header in
+            ForEach($editor.headers.storage) { $header in
                 Divider()
                     .padding(.leading)
                 HeaderField(key: header.key, value: $header.value, onRemove: {
-                    editorViewModel.headers.removeAll(header.key)
+                    editor.headers.removeAll(header.key)
                 })
             }
-
-//            DateField(key: "Date", date: $model.headers["Date"])
 
             Divider()
                 .padding(.leading)
 
-            BodyField(
-                text: Binding(get: {
-                    editorViewModel.body
-                },
-                set: {
-                    editorViewModel.body = $0
-                }),
-                focus: focus
-            )
+            BodyField(text: $editor.body, focus: focus)
         }
     }
 }
