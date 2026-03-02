@@ -4,6 +4,8 @@ struct PartView: View {
     @Bindable var part: PartModel
 
     @FocusState private var focus: EditorFocus?
+    @State private var isAddingHeader = false
+    @State private var newHeaderName = ""
 
     var canMoveUp: Bool
     var canMoveDown: Bool
@@ -34,17 +36,35 @@ struct PartView: View {
                 Spacer()
 
                 Menu {
+                    Menu {
+                        Button("Date") {
+                            part.headers["Date"] = Date.now.rfc1123
+                        }
+                        Button("From") {
+                            part.headers["From"] = ""
+                        }
+                        Button("To") {
+                            part.headers["To"] = ""
+                        }
+                        Button("Subject") {
+                            part.headers["Subject"] = ""
+                        }
+                        Divider()
+                        Button("Custom Header...") {
+                            newHeaderName = ""
+                            isAddingHeader = true
+                        }
+                    } label: {
+                        Text("Add Header")
+                    }
+
+                    Divider()
+
                     Button("Move Up", action: onMoveUp)
                         .disabled(!canMoveUp)
 
                     Button("Move Down", action: onMoveDown)
                         .disabled(!canMoveDown)
-
-                    Divider()
-
-                    Button("Add Custom Header") {
-                        part.headers["X-Custom"] = ""
-                    }
 
                     Divider()
 
@@ -85,6 +105,16 @@ struct PartView: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(Color.primary.opacity(0.1), lineWidth: 1)
         )
+        .alert("Add Header", isPresented: $isAddingHeader) {
+            TextField("Header name", text: $newHeaderName)
+            Button("Cancel", role: .cancel) {}
+            Button("Add") {
+                let name = newHeaderName.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty {
+                    part.headers[name] = ""
+                }
+            }
+        }
     }
 
     private func headerBinding(for key: String) -> Binding<String> {

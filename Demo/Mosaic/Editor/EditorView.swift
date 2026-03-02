@@ -4,6 +4,8 @@ import MIME
 struct EditorView: View {
 
     @State var editorViewModel = EditorViewModel()
+    @State private var isAddingHeader = false
+    @State private var newHeaderName = ""
     @FocusState var focus: EditorFocus?
 
     var body: some View {
@@ -28,11 +30,26 @@ struct EditorView: View {
         .toolbar {
             ToolbarItem {
                 Menu {
-                    Button("Add Date Header") {
-                        editorViewModel.headers["Date"] = Date.now.rfc1123
-                    }
-                    Button("Add Custom Header") {
-                        editorViewModel.headers["X-Custom"] = ""
+                    Menu {
+                        Button("Date") {
+                            editorViewModel.headers["Date"] = Date.now.rfc1123
+                        }
+                        Button("From") {
+                            editorViewModel.headers["From"] = ""
+                        }
+                        Button("To") {
+                            editorViewModel.headers["To"] = ""
+                        }
+                        Button("Subject") {
+                            editorViewModel.headers["Subject"] = ""
+                        }
+                        Divider()
+                        Button("Custom...") {
+                            newHeaderName = ""
+                            isAddingHeader = true
+                        }
+                    } label: {
+                        Text("Add Header")
                     }
                     Divider()
                     Button("Reset") {
@@ -59,6 +76,16 @@ struct EditorView: View {
                     Image(systemName: "checkmark")
                 }
                 .buttonStyle(.borderedProminent)
+            }
+        }
+        .alert("Add Header", isPresented: $isAddingHeader) {
+            TextField("Header name", text: $newHeaderName)
+            Button("Cancel", role: .cancel) {}
+            Button("Add") {
+                let name = newHeaderName.trimmingCharacters(in: .whitespaces)
+                if !name.isEmpty {
+                    editorViewModel.headers[name] = ""
+                }
             }
         }
         .task {
