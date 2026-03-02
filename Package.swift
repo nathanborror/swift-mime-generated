@@ -6,14 +6,25 @@ import PackageDescription
 let package = Package(
     name: "swift-mime-generated",
     platforms: [
-        .iOS(.v18),
-        .macOS(.v15),
+        .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "MIME", targets: ["MIME"]),
     ],
     targets: [
-        .target(name: "MIME"),
-        .testTarget(name: "MIMETests", dependencies: ["MIME"]),
+        .target(
+            name: "MIME"
+        ),
+        .testTarget(
+            name: "MIMETests",
+            dependencies: ["MIME"]
+        ),
+        .executableTarget(
+            name: "Mosaic",
+            dependencies: ["MIME"],
+            path: "Demo/Mosaic"
+        ),
     ]
 )
+
