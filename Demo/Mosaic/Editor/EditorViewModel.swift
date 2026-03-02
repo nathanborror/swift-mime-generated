@@ -120,7 +120,10 @@ class PartModel: Identifiable {
     }
 
     var sortedHeaderKeys: [String] {
-        headers.keys.sorted()
+        let templateKeys = kind.headerFields.map(\.key)
+        let templatePresent = templateKeys.filter { headers[$0] != nil }
+        let custom = headers.keys.filter { key in !templateKeys.contains(key) }.sorted()
+        return templatePresent + custom
     }
 
     var removedTemplateHeaders: [String] {
