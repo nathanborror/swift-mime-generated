@@ -2,11 +2,11 @@ import SwiftUI
 import MIME
 
 struct HeaderField: View {
-    @Environment(EditorViewModel.self) var editorViewModel
-
     let key: String
 
     @Binding var value: String
+
+    var onRemove: (() -> Void)?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -15,13 +15,15 @@ struct HeaderField: View {
             TextField("", text: $value, prompt: nil)
                 .textFieldStyle(.plain)
 
-            Button {
-                editorViewModel.headers.removeAll(key)
-            } label: {
-                Image(systemName: "xmark")
-                    .foregroundStyle(.tertiary)
+            if let onRemove {
+                Button {
+                    onRemove()
+                } label: {
+                    Image(systemName: "xmark")
+                        .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.borderless)
             }
-            .buttonStyle(.borderless)
         }
         .padding(.horizontal)
         .padding(.vertical, 14)

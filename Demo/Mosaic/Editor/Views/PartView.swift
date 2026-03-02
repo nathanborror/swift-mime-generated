@@ -42,6 +42,12 @@ struct PartView: View {
 
                     Divider()
 
+                    Button("Add Custom Header") {
+                        part.headers["X-Custom"] = ""
+                    }
+
+                    Divider()
+
                     Button("Delete", role: .destructive, action: onDelete)
                 } label: {
                     Image(systemName: "ellipsis")
@@ -57,10 +63,13 @@ struct PartView: View {
 
             if !part.isCollapsed {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(part.kind.headerFields.indices, id: \.self) { index in
+                    ForEach(part.sortedHeaderKeys, id: \.self) { key in
                         HeaderField(
-                            key: part.kind.headerFields[index].key,
-                            value: fieldBinding(for: part.kind.headerFields[index])
+                            key: key,
+                            value: headerBinding(for: key),
+                            onRemove: {
+                                part.headers.removeValue(forKey: key)
+                            }
                         )
                         Divider()
                             .padding(.leading)
@@ -78,10 +87,10 @@ struct PartView: View {
         )
     }
 
-    private func fieldBinding(for field: PartField) -> Binding<String> {
+    private func headerBinding(for key: String) -> Binding<String> {
         Binding(
-            get: { part.fields[field.key] ?? "" },
-            set: { part.fields[field.key] = $0 }
+            get: { part.headers[key] ?? "" },
+            set: { part.headers[key] = $0 }
         )
     }
 }

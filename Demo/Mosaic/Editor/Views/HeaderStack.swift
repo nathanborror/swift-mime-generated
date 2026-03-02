@@ -14,7 +14,9 @@ struct HeaderStack: View {
             ForEach($editorViewModel.headers.storage) { $header in
                 Divider()
                     .padding(.leading)
-                HeaderField(key: header.key, value: $header.value)
+                HeaderField(key: header.key, value: $header.value, onRemove: {
+                    editorViewModel.headers.removeAll(header.key)
+                })
             }
 
 //            DateField(key: "Date", date: $model.headers["Date"])

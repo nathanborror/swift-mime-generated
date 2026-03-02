@@ -89,13 +89,19 @@ class EditorViewModel {
 class PartModel: Identifiable {
     let id = UUID()
     var kind: PartKind
-    var fields: [String: String]
+    var headers: [String: String]
     var body: String
     var isCollapsed: Bool
 
-    init(kind: PartKind, fields: [String: String] = [:], body: String = "", isCollapsed: Bool = false) {
+    init(kind: PartKind, headers: [String: String] = [:], body: String = "", isCollapsed: Bool = false) {
         self.kind = kind
-        self.fields = fields
+        // Seed from the kind's template fields, then overlay any provided headers
+        var seeded: [String: String] = [:]
+        for field in kind.headerFields {
+            seeded[field.key] = ""
+        }
+        seeded.merge(headers) { _, new in new }
+        self.headers = seeded
         self.body = body
         self.isCollapsed = isCollapsed
     }
@@ -105,22 +111,24 @@ class PartModel: Identifiable {
         self.kind = PartKind(contentType: contentType.value) ?? .note
         self.body = part.body
         self.isCollapsed = false
-        self.fields = [:]
-        for field in kind.headerFields {
-            if let value = part.headers[field.key] {
-                fields[field.key] = value
-            }
+        self.headers = [:]
+        for header in part.headers {
+            // Skip Content-Type since it's derived from kind
+            guard header.key != "Content-Type" else { continue }
+            headers[header.key] = header.value
         }
     }
 
+    var sortedHeaderKeys: [String] {
+        headers.keys.sorted()
+    }
+
     func buildMIMEPart() -> MIMEPart {
-        var headers = MIMEHeaders()
-        headers["Content-Type"] = kind.contentType
-        for field in kind.headerFields {
-            if let value = fields[field.key], !value.isEmpty {
-                headers[field.key] = value
-            }
+        var mimeHeaders = MIMEHeaders()
+        mimeHeaders["Content-Type"] = kind.contentType
+        for (key, value) in headers where !value.isEmpty {
+            mimeHeaders[key] = value
         }
-        return MIMEPart(headers: headers, body: body)
+        return MIMEPart(headers: mimeHeaders, body: body)
     }
 }
