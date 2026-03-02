@@ -11,10 +11,10 @@ struct HeaderStack: View {
         VStack(alignment: .leading, spacing: 0) {
             ContentTypeField()
 
-            ForEach(editorViewModel.headers.storage) { header in
+            ForEach($editorViewModel.headers.storage) { $header in
                 Divider()
                     .padding(.leading)
-                HeaderField(key: header.key, value: binding(for: header))
+                HeaderField(key: header.key, value: $header.value)
             }
 
 //            DateField(key: "Date", date: $model.headers["Date"])
@@ -32,12 +32,5 @@ struct HeaderStack: View {
                 focus: focus
             )
         }
-    }
-
-    private func binding(for header: MIMEHeader) -> Binding<String> {
-        Binding(
-            get: { editorViewModel.headers[header.key] ?? "" },
-            set: { editorViewModel.headers[header.key] = $0 }
-        )
     }
 }
