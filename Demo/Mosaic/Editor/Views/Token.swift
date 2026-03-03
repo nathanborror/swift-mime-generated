@@ -46,9 +46,11 @@ struct Token: View {
             }
             editor.movePart(fromID: droppedPartID, toID: self.id)
         }
+        #if os(macOS)
         .dropConfiguration { session in
             DropConfiguration(operation: .move)
         }
         .dropHoverHighlight(isEnabled: true, isHovering: $isHighlighted)
+        #endif
     }
 }

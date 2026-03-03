@@ -26,6 +26,7 @@ struct DropTargetHighlight: ViewModifier {
                 }
             )
             // Session-wide updates while a drop is moving over this subtree.
+            #if os(macOS)
             .onDropSessionUpdated { session in
                 guard isEnabled else {
                     isHovering = false
@@ -45,6 +46,7 @@ struct DropTargetHighlight: ViewModifier {
                     isHovering = false
                 }
             }
+            #endif
             .onDisappear {
                 isHovering = false
             }
