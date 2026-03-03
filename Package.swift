@@ -4,13 +4,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "swift-mime-generated",
+    name: "swift-mime",
     platforms: [
         .iOS(.v26),
         .macOS(.v26),
     ],
     products: [
-        .library(name: "MIME", targets: ["MIME"]),
+        .library(name: "MIME", targets: ["MIME"])
     ],
     targets: [
         .target(
@@ -27,4 +27,3 @@ let package = Package(
         ),
     ]
 )
-

@@ -11,7 +11,7 @@ A Swift package for parsing and encoding MIME formatted data (RFC 2045/2046).
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/nathanborror/swift-mime-generated.git", from: "1.0.0")
+    .package(url: "https://github.com/nathanborror/swift-mime.git", branch: "main")
 ]
 ```
 
