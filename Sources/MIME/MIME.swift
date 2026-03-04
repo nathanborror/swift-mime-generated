@@ -314,8 +314,13 @@ public struct MIMEHeaders: Sendable, Equatable {
     /// - Parameters:
     ///   - key: The header name
     ///   - value: The header value to add
-    public mutating func add(_ key: String, value: String) {
-        storage.append(.init(key: key, value: value))
+    public mutating func add(_ key: String, value: String, at index: Int? = nil) {
+        let header = MIMEHeader(key: key, value: value)
+        if let index {
+            storage.insert(header, at: index)
+        } else {
+            storage.append(header)
+        }
     }
 
     /// Removes all headers with the given name.
