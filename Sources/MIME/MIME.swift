@@ -183,6 +183,11 @@ public struct MIMEPart: Sendable, Identifiable, Equatable {
         return value.isEmpty ? nil : value
     }
 
+    /// Returns the boundary parameter from the Content-Type header, if present.
+    public var boundary: String? {
+        headerAttributes(.ContentType)["boundary"]
+    }
+
     /// Returns the body decoded according to the charset specified in headers.
     /// Currently returns the body as-is; future versions may support encoding conversion.
     public var decodedBody: String {
