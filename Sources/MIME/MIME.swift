@@ -177,6 +177,12 @@ public struct MIMEPart: Sendable, Identifiable, Equatable {
         MIMEHeaderAttributes.parse(headers[headerName])
     }
 
+    /// Returns just the content type string (e.g., "text/plain") without any parameters like boundary or charset.
+    public var contentType: String? {
+        let value = headerAttributes(.ContentType).value
+        return value.isEmpty ? nil : value
+    }
+
     /// Returns the body decoded according to the charset specified in headers.
     /// Currently returns the body as-is; future versions may support encoding conversion.
     public var decodedBody: String {
