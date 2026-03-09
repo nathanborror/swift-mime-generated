@@ -18,7 +18,7 @@ func headerOrderPreserved() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    let keys = message.parts[0].headers.map { $0.key }
+    let keys = message.headers.map { $0.key }
     #expect(keys.count == 6)
     #expect(keys[0] == .From)
     #expect(keys[1] == .To)
@@ -38,11 +38,11 @@ func headerOrderEncoding() async throws {
     headers[.MIMEVersion] = "1.0"
     headers[.ContentType] = "text/plain"
 
-    let message = MIMEMessage([.init(headers: headers, body: "")])
+    let message = MIMEMessage(headers: headers, body: "")
     let encoded = MIMEEncoder().encode(message)
     let reparsed = try MIMEDecoder().decode(encoded)
 
-    let keys = reparsed.parts[0].headers.map { $0.key }
+    let keys = reparsed.headers.map { $0.key }
     #expect(keys.count == 6)
     #expect(keys[0] == .From)
     #expect(keys[1] == .To)
@@ -68,9 +68,9 @@ func headerOnMultipleLines() async throws {
         """
 
     let message = try MIMEDecoder().decode(mimeContent)
-    #expect(message.parts[0].headers[.From]?.contains("Very Long Name") == true)
-    #expect(message.parts[0].headers[.From]?.contains("very.long.email@example.com") == true)
-    #expect(message.parts.count == 2)
+    #expect(message.headers[.From]?.contains("Very Long Name") == true)
+    #expect(message.headers[.From]?.contains("very.long.email@example.com") == true)
+    #expect(message.parts.count == 1)
 }
 
 @Test("Header collection")
@@ -112,10 +112,10 @@ func headerDecodingDuplicates() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Subscript should return first value
-    #expect(message.parts[0].headers["Received"] == "from server1.example.com by server2.example.com")
+    #expect(message.headers["Received"] == "from server1.example.com by server2.example.com")
 
     // values(for:) should return all values
-    let receivedHeaders = message.parts[0].headers.values(for: "Received")
+    let receivedHeaders = message.headers.values(for: "Received")
     #expect(receivedHeaders.count == 3)
     #expect(receivedHeaders[0] == "from server1.example.com by server2.example.com")
     #expect(receivedHeaders[1] == "from server2.example.com by server3.example.com")
@@ -215,7 +215,7 @@ func headerRoundTripWithDuplicates() async throws {
     let message = try MIMEDecoder().decode(originalContent)
 
     // Verify parsing
-    #expect(message.parts[0].headers.values(for: "Received").count == 3)
+    #expect(message.headers.values(for: "Received").count == 3)
 
     // Encode back
     let encoded = MIMEEncoder().encode(message)
@@ -224,7 +224,7 @@ func headerRoundTripWithDuplicates() async throws {
     let reparsed = try MIMEDecoder().decode(encoded)
 
     // Verify all Received headers are preserved
-    let receivedHeaders = reparsed.parts[0].headers.values(for: "Received")
+    let receivedHeaders = reparsed.headers.values(for: "Received")
     #expect(receivedHeaders.count == 3)
     #expect(receivedHeaders[0] == "from server1.example.com")
     #expect(receivedHeaders[1] == "from server2.example.com")
@@ -255,12 +255,12 @@ func headerMultipartDuplicates() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
 
     // Check message-level duplicate headers
-    #expect(message.parts[0].headers.values(for: "Received").count == 2)
+    #expect(message.headers.values(for: "Received").count == 2)
 
     // Check part-level duplicate headers
-    #expect(message.parts[1].headers.values(for: "X-Custom").count == 2)
-    #expect(message.parts[1].headers.values(for: "X-Custom")[0] == "custom1")
-    #expect(message.parts[1].headers.values(for: "X-Custom")[1] == "custom2")
+    #expect(message.parts[0].headers.values(for: "X-Custom").count == 2)
+    #expect(message.parts[0].headers.values(for: "X-Custom")[0] == "custom1")
+    #expect(message.parts[0].headers.values(for: "X-Custom")[1] == "custom2")
 }
 
 @Test("Header duplicates removing all")
@@ -301,9 +301,9 @@ func headerAttributes() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts[0].headerAttributes(.ContentType)["boundary"] == "test")
+    #expect(message.headerAttributes(.ContentType)["boundary"] == "test")
+    #expect(message.headerAttributes(.ContentType)["charset"] == "utf-8")
     #expect(message.parts[0].headerAttributes(.ContentType)["charset"] == "utf-8")
-    #expect(message.parts[1].headerAttributes(.ContentType)["charset"] == "utf-8")
-    #expect(message.parts[2].headerAttributes(.ContentType)["charset"] == "iso-8859-1")
-    #expect(message.parts[3].headerAttributes(.ContentType)["charset"] == nil)
+    #expect(message.parts[1].headerAttributes(.ContentType)["charset"] == "iso-8859-1")
+    #expect(message.parts[2].headerAttributes(.ContentType)["charset"] == nil)
 }

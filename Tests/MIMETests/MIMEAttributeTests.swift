@@ -74,11 +74,11 @@ func attributesMultipart() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    #expect(message.parts[0].headerAttributes(.ContentType).value == "multipart/mixed")
-    #expect(message.parts[0].headerAttributes(.ContentType)["boundary"] == "test")
-    #expect(message.parts[1].headerAttributes(.ContentType).value == "text/plain")
-    #expect(message.parts[1].headerAttributes(.ContentType)["charset"] == "utf-8")
-    #expect(message.parts[1].headerAttributes(.ContentType)["format"] == "flowed")
+    #expect(message.headerAttributes(.ContentType).value == "multipart/mixed")
+    #expect(message.headerAttributes(.ContentType)["boundary"] == "test")
+    #expect(message.parts[0].headerAttributes(.ContentType).value == "text/plain")
+    #expect(message.parts[0].headerAttributes(.ContentType)["charset"] == "utf-8")
+    #expect(message.parts[0].headerAttributes(.ContentType)["format"] == "flowed")
 }
 
 @Test("Attributes with special characters")

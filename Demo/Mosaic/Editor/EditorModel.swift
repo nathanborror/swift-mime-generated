@@ -48,27 +48,20 @@ class EditorModel {
         if isMultipart {
             let boundary = UUID().uuidString
             headers["Content-Type"] = "\(kind.contentType); boundary=\"\(boundary)\""
-            let envelope = MIMEPart(headers: headers, body: "")
-            var mimeParts = [envelope]
-            for part in parts {
-                mimeParts.append(part.makeMIMEPart())
-            }
-            return MIMEMessage(mimeParts)
+            let mimeParts = parts.map { $0.makeMIMEPart() }
+            return MIMEMessage(headers: headers, parts: mimeParts)
         } else {
             headers["Content-Type"] = kind.contentType
-            let part = MIMEPart(headers: headers, body: body)
-            return MIMEMessage([part])
+            return MIMEMessage(headers: headers, body: body)
         }
     }
 
     func load(from message: MIMEMessage) {
-        guard let first = message.parts.first else { return }
-
-        if let dateHeader = first.headers["Date"] {
+        if let dateHeader = message.headers["Date"] {
             headers["Date"] = dateHeader
         }
 
-        let contentType = first.headerAttributes("Content-Type")
+        let contentType = message.headerAttributes("Content-Type")
         if let messageKind = MessageKind(contentType.value) {
             kind = messageKind
         } else {
@@ -76,10 +69,10 @@ class EditorModel {
         }
 
         if isMultipart {
-            parts = message.parts.dropFirst().map { PartModel(from: $0) }
+            parts = message.parts.map { PartModel(from: $0) }
             body = ""
         } else {
-            body = first.body
+            body = message.body
             parts = []
         }
     }

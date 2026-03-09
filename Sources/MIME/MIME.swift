@@ -2,20 +2,30 @@ import Foundation
 
 // MARK: - MIME Message
 
-/// Represents a complete MIME message with headers and parts.
+/// Represents a complete MIME message with an envelope (headers) and content.
 ///
-/// Use `MIMEDecoder().decode(_:)` to create a `MIMEMessage` from a string:
+/// For non-multipart messages, the body contains the content and parts is empty.
+/// For multipart messages, parts contains the sub-parts and body is empty.
 ///
 /// ```swift
 /// let message = try MIMEDecoder().decode(mimeString)
+/// print(message.headers["From"])
 /// for part in message.parts {
 ///     print(part.headers["Content-Type"])
 /// }
 /// ```
 public struct MIMEMessage: Sendable, Equatable {
+    public var headers: MIMEHeaders
+
+    /// The body content for non-multipart messages. Empty for multipart messages.
+    public var body: String
+
+    /// Sub-parts for multipart messages. Empty for non-multipart messages.
     public var parts: [MIMEPart]
 
-    public init(_ parts: [MIMEPart]) {
+    public init(headers: MIMEHeaders, body: String = "", parts: [MIMEPart] = []) {
+        self.headers = headers
+        self.body = body
         self.parts = parts
     }
 }
@@ -450,15 +460,12 @@ public struct MIMEDecoder {
 
         // Extract boundary from Content-Type header
         if let boundary = extractBoundary(from: headers[.ContentType]) {
-            let part = MIMEPart(headers: headers, body: "")
-
             // Multipart message - parse parts
             let parts = try parseParts(bodyContent, boundary: boundary)
-            return MIMEMessage([part] + parts)
+            return MIMEMessage(headers: headers, parts: parts)
         } else {
-            // Non-multipart message - treat entire body as single part
-            let part = MIMEPart(headers: headers, body: bodyContent)
-            return MIMEMessage([part])
+            // Non-multipart message - body is the content
+            return MIMEMessage(headers: headers, body: bodyContent)
         }
     }
 
@@ -605,40 +612,35 @@ public struct MIMEEncoder {
     public init() {}
 
     public func encode(_ message: MIMEMessage) -> Data {
-        guard !message.parts.isEmpty else {
+        guard !message.headers.storage.isEmpty else {
             return Data()
-        }
-
-        // If single part (non-multipart), encode it directly
-        if message.parts.count == 1 {
-            return encode(message.parts[0])
-        }
-
-        // Multipart message - first part contains envelope headers
-        let envelope = message.parts[0]
-        let contentParts = Array(message.parts.dropFirst())
-
-        // Extract boundary from Content-Type
-        guard let boundary = extractBoundary(from: envelope.headers[.ContentType]) else {
-            // No boundary found, encode as non-multipart
-            return encode(envelope)
         }
 
         var result = ""
 
         // Encode envelope headers
-        result += encodeHeaders(envelope.headers)
+        result += encodeHeaders(message.headers)
         result += "\n"
 
-        // Encode each part with boundary
-        for part in contentParts {
-            result += "--\(boundary)\n"
-            result += encodePart(part)
-            result += "\n"
-        }
+        if message.parts.isEmpty {
+            // Non-multipart message
+            result += message.body
+        } else {
+            // Multipart message
+            guard let boundary = extractBoundary(from: message.headers[.ContentType]) else {
+                // No boundary found, treat as non-multipart
+                result += message.body
+                return result.data(using: .utf8) ?? Data()
+            }
 
-        // End boundary
-        result += "--\(boundary)--\n"
+            for part in message.parts {
+                result += "--\(boundary)\n"
+                result += encodePart(part)
+                result += "\n"
+            }
+
+            result += "--\(boundary)--\n"
+        }
 
         return result.data(using: .utf8) ?? Data()
     }
@@ -727,6 +729,22 @@ public enum MIMEError: Error, CustomStringConvertible {
 // MARK: - Convenience Extensions
 
 extension MIMEMessage {
+    /// Parse attributes from any header value.
+    public func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes {
+        MIMEHeaderAttributes.parse(headers[headerName])
+    }
+
+    /// Returns just the content type string (e.g., "text/plain") without any parameters.
+    public var contentType: String? {
+        let value = headerAttributes(.ContentType).value
+        return value.isEmpty ? nil : value
+    }
+
+    /// Returns the boundary parameter from the Content-Type header, if present.
+    public var boundary: String? {
+        headerAttributes(.ContentType)["boundary"]
+    }
+
     /// Find all parts with a specific header value.
     /// Searches recursively through nested parts.
     ///
