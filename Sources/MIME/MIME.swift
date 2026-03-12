@@ -197,13 +197,6 @@ public struct MIMEPart: Sendable, Identifiable, Equatable {
     public var boundary: String? {
         headerAttributes(.ContentType)["boundary"]
     }
-
-    /// Returns the body decoded according to the charset specified in headers.
-    /// Currently returns the body as-is; future versions may support encoding conversion.
-    public var decodedBody: String {
-        body
-    }
-
 }
 
 // MARK: - MIME Headers

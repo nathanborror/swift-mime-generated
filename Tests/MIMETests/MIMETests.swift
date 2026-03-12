@@ -657,8 +657,7 @@ func multipartBodyDecoding() async throws {
     let message = try MIMEDecoder().decode(mimeContent)
     let part = message.parts[0]
 
-    #expect(part.decodedBody == "Hello, 世界!")
-    #expect(part.body == part.decodedBody)
+    #expect(part.body == "Hello, 世界!")
 }
 
 @Test("Multipart part checking")
