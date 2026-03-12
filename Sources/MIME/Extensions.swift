@@ -9,6 +9,7 @@ extension String {
 
     public static let ContentType = "Content-Type"
     public static let ContentDisposition = "Content-Disposition"
+    public static let ContentEncoding = "Content-Encoding"
     public static let ContentID = "Content-ID"
     public static let ContentTransferEncoding = "Content-Transfer-Encoding"
 
