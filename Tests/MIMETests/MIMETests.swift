@@ -87,6 +87,23 @@ func decodingMissingContentType() async throws {
     #expect(message.body.contains("This message has no Content-Type header"))
 }
 
+@Test("Decoding incomplete multipart")
+func decodingMultipart() async throws {
+    let original = """
+        Content-Type: multipart/mixed
+
+        --
+        Content-Type: text/plain
+
+        Content
+        ----
+        """
+
+    let message = try MIMEDecoder().decode(original)
+    #expect(message.headers.count == 1)
+    #expect(message.parts.count == 1)
+}
+
 @Test("Decoding round-trip")
 func decodingRoundTrip() async throws {
     let original = """
@@ -603,7 +620,7 @@ func multipartContentTypeFiltering() async throws {
 }
 
 @Test("Multipart without boundary")
-func multipartWithoutBoundaryTreatedAsSinglePart() async throws {
+func multipartWithoutBoundaryInfersBoundary() async throws {
     let mimeContent = """
         From: Test <test@example.com>
         Content-Type: multipart/mixed
@@ -617,9 +634,9 @@ func multipartWithoutBoundaryTreatedAsSinglePart() async throws {
 
     let message = try MIMEDecoder().decode(mimeContent)
 
-    // Without a boundary parameter, even multipart/* is treated as non-multipart
-    #expect(message.parts.isEmpty)
-    #expect(message.body.contains("This is treated as a single part"))
+    // Without a boundary parameter, multipart/* infers the boundary from the body
+    #expect(message.parts.count == 1)
+    #expect(message.parts[0].body == "This is treated as a single part")
 }
 
 @Test("Multipart with empty parts")

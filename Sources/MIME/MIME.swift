@@ -456,10 +456,40 @@ public struct MIMEDecoder {
             // Multipart message - parse parts
             let parts = try parseParts(bodyContent, boundary: boundary)
             return MIMEMessage(headers: headers, parts: parts)
+        } else if isMultipart(headers[.ContentType]),
+            let inferred = inferBoundary(from: bodyContent)
+        {
+            // Multipart message with no boundary parameter - infer it from the body
+            let parts = try parseParts(bodyContent, boundary: inferred)
+            return MIMEMessage(headers: headers, parts: parts)
         } else {
             // Non-multipart message - body is the content
             return MIMEMessage(headers: headers, body: bodyContent)
         }
+    }
+
+    /// Returns true if the Content-Type header value declares a `multipart/*` type.
+    private func isMultipart(_ contentType: String?) -> Bool {
+        let attributes = MIMEHeaderAttributes.parse(contentType)
+        return attributes.value.lowercased().hasPrefix("multipart/")
+    }
+
+    /// Infer a boundary from a multipart body that has no explicit boundary parameter.
+    ///
+    /// Scans for the first line that begins with `--`, treating that line (minus the
+    /// leading `--`) as the boundary. A trailing `--` is stripped so closing markers
+    /// like `----` are also handled correctly.
+    private func inferBoundary(from body: String) -> String? {
+        for line in body.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("--") else { continue }
+            var candidate = String(trimmed.dropFirst(2))
+            if candidate.hasSuffix("--") {
+                candidate = String(candidate.dropLast(2))
+            }
+            return candidate
+        }
+        return nil
     }
 
     /// Extract boundary from Content-Type header
