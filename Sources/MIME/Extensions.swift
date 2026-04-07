@@ -14,4 +14,8 @@ extension String {
     public static let ContentTransferEncoding = "Content-Transfer-Encoding"
 
     public static let MIMEVersion = "MIME-Version"
+
+    static var boundary: String {
+        UUID().uuidString.prefix(7).lowercased()
+    }
 }

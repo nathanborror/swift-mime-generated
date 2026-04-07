@@ -609,6 +609,9 @@ public struct MIMEEncoder {
             return Data()
         }
 
+        var message = message
+        ensureBoundaryIfMultipart(in: &message.headers)
+
         var result = ""
 
         // Encode envelope headers
@@ -639,11 +642,16 @@ public struct MIMEEncoder {
     }
 
     public func encode(_ part: MIMEPart) -> Data {
+        var part = part
+        ensureBoundaryIfMultipart(in: &part.headers)
         let result = encodePart(part)
         return result.data(using: .utf8) ?? Data()
     }
 
     private func encodePart(_ part: MIMEPart) -> String {
+        var part = part
+        ensureBoundaryIfMultipart(in: &part.headers)
+
         var result = ""
         result += encodeHeaders(part.headers)
         result += "\n"
@@ -685,6 +693,19 @@ public struct MIMEEncoder {
     private func extractBoundary(from contentType: String?) -> String? {
         let attributes = MIMEHeaderAttributes.parse(contentType)
         return attributes["boundary"]
+    }
+
+    /// If the headers declare a `multipart/*` Content-Type without a `boundary`
+    /// parameter, generate one and append it to the Content-Type header value.
+    private func ensureBoundaryIfMultipart(in headers: inout MIMEHeaders) {
+        guard let contentType = headers[.ContentType] else { return }
+        let attributes = MIMEHeaderAttributes.parse(contentType)
+        guard attributes.value.lowercased().hasPrefix("multipart/") else { return }
+        guard attributes["boundary"] == nil else { return }
+
+        let boundary = String.boundary
+        let separator = contentType.trimmingCharacters(in: .whitespaces).hasSuffix(";") ? " " : "; "
+        headers[.ContentType] = contentType + separator + "boundary=\"\(boundary)\""
     }
 }
 
