@@ -452,14 +452,17 @@ public struct MIMEDecoder {
         let bodyContent = lines[currentLine...].joined(separator: "\n")
 
         // Extract boundary from Content-Type header
-        if let boundary = extractBoundary(from: headers[.ContentType]) {
+        if let boundary = extractBoundary(from: headers[.ContentType]),
+            bodyContent.contains("--" + boundary)
+        {
             // Multipart message - parse parts
             let parts = try parseParts(bodyContent, boundary: boundary)
             return MIMEMessage(headers: headers, parts: parts)
         } else if isMultipart(headers[.ContentType]),
             let inferred = inferBoundary(from: bodyContent)
         {
-            // Multipart message with no boundary parameter - infer it from the body
+            // Multipart message whose declared boundary is missing or doesn't
+            // match the body - infer the boundary from the body instead.
             let parts = try parseParts(bodyContent, boundary: inferred)
             return MIMEMessage(headers: headers, parts: parts)
         } else {
