@@ -186,17 +186,6 @@ public struct MIMEPart: Sendable, Identifiable, Equatable {
     public func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes {
         MIMEHeaderAttributes.parse(headers[headerName])
     }
-
-    /// Returns just the content type string (e.g., "text/plain") without any parameters like boundary or charset.
-    public var contentType: String? {
-        let value = headerAttributes(.ContentType).value
-        return value.isEmpty ? nil : value
-    }
-
-    /// Returns the boundary parameter from the Content-Type header, if present.
-    public var boundary: String? {
-        headerAttributes(.ContentType)["boundary"]
-    }
 }
 
 // MARK: - MIME Headers
@@ -779,17 +768,6 @@ extension MIMEMessage {
     /// Parse attributes from any header value.
     public func headerAttributes(_ headerName: String) -> MIMEHeaderAttributes {
         MIMEHeaderAttributes.parse(headers[headerName])
-    }
-
-    /// Returns just the content type string (e.g., "text/plain") without any parameters.
-    public var contentType: String? {
-        let value = headerAttributes(.ContentType).value
-        return value.isEmpty ? nil : value
-    }
-
-    /// Returns the boundary parameter from the Content-Type header, if present.
-    public var boundary: String? {
-        headerAttributes(.ContentType)["boundary"]
     }
 
     /// Find all parts with a specific header value.

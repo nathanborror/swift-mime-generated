@@ -93,6 +93,9 @@ func decodingIncompleteMultipart() async throws {
         Content-Type: multipart/mixed
 
         --
+        Conetnt-Type: text/plain
+        
+        --
         Content-Type: text/plain
 
         Content
@@ -101,7 +104,7 @@ func decodingIncompleteMultipart() async throws {
 
     let message = try MIMEDecoder().decode(original)
     #expect(message.headers.count == 1)
-    #expect(message.parts.count == 1)
+    #expect(message.parts.count == 2)
 }
 
 @Test("Decoding incomplete multipart with boundary")
