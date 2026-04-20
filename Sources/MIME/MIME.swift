@@ -411,7 +411,13 @@ public struct MIMEDecoder {
 
     /// Internal method to parse MIME message from a string.
     private func parseString(_ content: String) throws -> MIMEMessage {
-        let lines = content.components(separatedBy: .newlines)
+        // Normalize line endings so CRLF (per RFC 5322) and lone CR are both
+        // handled correctly. Splitting on `.newlines` treats \r and \n as
+        // separate separators, so raw CRLF input would yield spurious empty
+        // lines between each real line.
+        let normalized = content.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+        let lines = normalized.components(separatedBy: "\n")
 
         // Parse top-level headers
         var headerLines: [String] = []
